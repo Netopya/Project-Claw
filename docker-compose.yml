@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"  # Astro frontend
+      - "3001:3001"  # Hono API
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ./data:/app/data  # SQLite database persistence
+    environment:
+      - NODE_ENV=development
+      - DATABASE_PATH=/app/data/anime.db
+    command: npm run dev
+    stdin_open: true
+    tty: true
+
+volumes:
+  node_modules:

@@ -44,23 +44,35 @@
   - Create functions to transform API data into database-ready format
   - _Requirements: 1.3, 1.4, 5.2_
 
-- [ ] 5. Develop Hono API endpoints
-- [ ] 5.1 Create GET /api/anime endpoint
+- [x] 5. Develop Hono API endpoints
+
+
+
+- [x] 5.1 Create GET /api/anime endpoint
+
+
   - Implement endpoint to retrieve all anime ordered by priority
   - Add proper error handling for database connection issues
   - Write response formatting and data serialization
   - _Requirements: 2.1, 2.3, 5.3_
 
+
+
 - [ ] 5.2 Create POST /api/anime endpoint
   - Implement endpoint to add anime from MyAnimeList URL
   - Add URL validation and duplicate checking logic
   - Integrate MyAnimeList API service for data fetching
+
+
   - Handle priority assignment for new anime entries
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 5.1, 5.2_
 
-- [ ] 5.3 Create PUT /api/anime/reorder endpoint
+- [x] 5.3 Create PUT /api/anime/reorder endpoint
+
+
   - Implement endpoint to update anime priority ordering
   - Add transaction handling for atomic priority updates
+
   - Validate reorder request data and handle edge cases
   - _Requirements: 3.2, 3.3, 3.4_
 

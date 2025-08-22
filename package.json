@@ -10,8 +10,13 @@
     "preview": "astro preview",
     "astro": "astro",
     "api:dev": "tsx watch src/api/server.ts",
+    "api:start": "tsx src/api/server.ts",
+    "api:test": "tsx src/api/test-endpoints.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
+    "db:seed": "tsx src/db/seed.ts",
+    "test:mal": "tsx src/api/test-mal.ts",
+    "test:validation": "tsx src/api/test-validation.ts",
     "docker:dev": "docker-compose up --build",
     "docker:down": "docker-compose down"
   },

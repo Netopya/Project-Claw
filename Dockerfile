@@ -15,5 +15,9 @@ COPY . .
 EXPOSE 3000
 EXPOSE 3001
 
-# Start development server
-CMD ["npm", "run", "dev"]
+# Create startup script
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Start both frontend and API servers
+CMD ["docker-entrypoint.sh"]

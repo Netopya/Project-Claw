@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2563eb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="50" cy="50" r="45" fill="url(#grad1)" />
+  
+  <!-- Anime-style claw marks -->
+  <g fill="white" opacity="0.9">
+    <!-- First claw mark -->
+    <path d="M25 30 L35 20 L37 22 L27 32 Z" />
+    <path d="M30 35 L40 25 L42 27 L32 37 Z" />
+    <path d="M35 40 L45 30 L47 32 L37 42 Z" />
+    
+    <!-- Second set of claw marks -->
+    <path d="M55 35 L65 25 L67 27 L57 37 Z" />
+    <path d="M60 40 L70 30 L72 32 L62 42 Z" />
+    <path d="M65 45 L75 35 L77 37 L67 47 Z" />
+    
+    <!-- Third set of claw marks -->
+    <path d="M40 55 L50 45 L52 47 L42 57 Z" />
+    <path d="M45 60 L55 50 L57 52 L47 62 Z" />
+    <path d="M50 65 L60 55 L62 57 L52 67 Z" />
+  </g>
+  
+  <!-- Subtle highlight -->
+  <circle cx="35" cy="35" r="8" fill="white" opacity="0.2" />
+</svg>

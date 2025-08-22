@@ -82,5 +82,18 @@ export { app, startServer };
 
 // Start server if this file is run directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-  startServer();
+  startServer().then(async ({ port }) => {
+    // Start HTTP server using Hono Node.js adapter
+    const { serve } = await import('@hono/node-server');
+    
+    serve({
+      fetch: app.fetch,
+      port,
+    });
+    
+    console.log(`🎯 Server is listening on port ${port}`);
+  }).catch((error) => {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  });
 }

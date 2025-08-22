@@ -58,7 +58,9 @@
 
 
 
-- [ ] 5.2 Create POST /api/anime endpoint
+- [x] 5.2 Create POST /api/anime endpoint
+
+
   - Implement endpoint to add anime from MyAnimeList URL
   - Add URL validation and duplicate checking logic
   - Integrate MyAnimeList API service for data fetching
@@ -76,13 +78,19 @@
   - Validate reorder request data and handle edge cases
   - _Requirements: 3.2, 3.3, 3.4_
 
-- [ ] 5.4 Create DELETE /api/anime/:id endpoint
+- [x] 5.4 Create DELETE /api/anime/:id endpoint
+
+
   - Implement endpoint to remove anime from watchlist
   - Add priority adjustment logic for remaining items
   - Handle cascading updates when anime is removed
   - _Requirements: 4.1, 4.2, 4.4_
 
-- [ ] 6. Build Astro frontend structure
+- [x] 6. Build Astro frontend structure
+
+
+
+
   - Create main Astro page layout with proper HTML structure
   - Set up Tailwind CSS configuration and base styles
   - Create responsive layout components and navigation

@@ -1,0 +1,28 @@
+---
+export interface Props {
+  type?: 'text' | 'email' | 'password' | 'url' | 'search';
+  placeholder?: string;
+  disabled?: boolean;
+  required?: boolean;
+  class?: string;
+  id?: string;
+  name?: string;
+  value?: string;
+}
+
+const { 
+  type = 'text',
+  class: className = '',
+  ...props 
+} = Astro.props;
+
+const baseClasses = 'block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed';
+
+const classes = `${baseClasses} ${className}`;
+---
+
+<input 
+  type={type}
+  class={classes}
+  {...props}
+/>

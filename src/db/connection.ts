@@ -27,8 +27,43 @@ export async function initializeDatabase() {
   try {
     console.log('Initializing database...');
     
-    // Run migrations
-    migrate(db, { migrationsFolder: './src/db/migrations' });
+    // Check if tables already exist
+    const tableExists = sqlite.prepare(`
+      SELECT name FROM sqlite_master 
+      WHERE type='table' AND name='anime'
+    `).get();
+    
+    if (!tableExists) {
+      console.log('Creating anime table...');
+      
+      // Create table
+      sqlite.exec(`
+        CREATE TABLE anime (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          mal_id INTEGER NOT NULL,
+          title TEXT NOT NULL,
+          title_english TEXT,
+          title_japanese TEXT,
+          image_url TEXT,
+          rating REAL,
+          premiere_date TEXT,
+          num_episodes INTEGER,
+          series_info TEXT,
+          priority INTEGER NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      
+      // Create indexes
+      sqlite.exec('CREATE UNIQUE INDEX anime_mal_id_unique ON anime (mal_id)');
+      sqlite.exec('CREATE INDEX idx_anime_priority ON anime (priority)');
+      sqlite.exec('CREATE INDEX idx_anime_mal_id ON anime (mal_id)');
+      
+      console.log('Database tables created successfully');
+    } else {
+      console.log('Database tables already exist');
+    }
     
     console.log('Database initialized successfully');
     return true;

@@ -1,19 +1,165 @@
 ---
-// Placeholder for main page
+import Layout from '../layouts/Layout.astro';
+
+// Fetch initial anime data from API
+let animeList = [];
+let apiError = null;
+
+try {
+  // In development, the API might not be running yet
+  const response = await fetch('http://localhost:3001/api/anime');
+  if (response.ok) {
+    const data = await response.json();
+    animeList = data.data || [];
+  } else {
+    console.warn('API not available, starting with empty list');
+  }
+} catch (error) {
+  console.warn('Failed to fetch initial anime data:', error);
+  apiError = 'API not available';
+}
 ---
 
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width" />
-    <meta name="generator" content={Astro.generator} />
-    <title>Project Claw - Anime Watchlist</title>
-  </head>
-  <body>
-    <main>
-      <h1>Project Claw</h1>
-      <p>Anime Watchlist Application</p>
-    </main>
-  </body>
-</html>
+<Layout title="Project Claw - Anime Watchlist">
+  <div class="space-y-8">
+    <!-- Page Header -->
+    <div class="text-center">
+      <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-4">
+        Your Anime Watchlist
+      </h1>
+      <p class="text-base sm:text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto px-4">
+        Organize your anime priorities with drag-and-drop reordering. 
+        Add anime directly from MyAnimeList URLs and keep track of what to watch next.
+      </p>
+    </div>
+
+    <!-- API Status Warning -->
+    {apiError && (
+      <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div class="ml-3">
+            <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+              API Connection Issue
+            </h3>
+            <p class="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+              The API server is not responding. Make sure it's running on port 3001.
+            </p>
+          </div>
+        </div>
+      </div>
+    )}
+
+    <!-- Watchlist App Container -->
+    <div id="watchlist-container" class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+      <!-- This will be replaced by the React component -->
+      <div class="p-8 text-center">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p class="text-gray-600 dark:text-gray-400">Loading watchlist...</p>
+      </div>
+    </div>
+
+    <!-- Getting Started Guide -->
+    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 sm:p-6">
+      <h2 class="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-4">
+        🚀 Getting Started
+      </h2>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+        <div class="flex items-start space-x-3">
+          <div class="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+            1
+          </div>
+          <div>
+            <h3 class="font-medium text-blue-900 dark:text-blue-100">Add Anime</h3>
+            <p class="text-blue-700 dark:text-blue-300">
+              Paste a MyAnimeList URL to add anime to your watchlist
+            </p>
+          </div>
+        </div>
+        <div class="flex items-start space-x-3">
+          <div class="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+            2
+          </div>
+          <div>
+            <h3 class="font-medium text-blue-900 dark:text-blue-100">Reorder</h3>
+            <p class="text-blue-700 dark:text-blue-300">
+              Drag and drop anime to prioritize what you want to watch next
+            </p>
+          </div>
+        </div>
+        <div class="flex items-start space-x-3 sm:col-span-2 lg:col-span-1">
+          <div class="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+            3
+          </div>
+          <div>
+            <h3 class="font-medium text-blue-900 dark:text-blue-100">Manage</h3>
+            <p class="text-blue-700 dark:text-blue-300">
+              Remove anime you've watched or are no longer interested in
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Features Overview -->
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div class="text-center p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div class="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center mx-auto mb-4">
+          <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+          </svg>
+        </div>
+        <h3 class="font-semibold text-gray-900 dark:text-white mb-2">MyAnimeList Integration</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+          Automatically fetch anime details from MyAnimeList URLs
+        </p>
+      </div>
+
+      <div class="text-center p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center mx-auto mb-4">
+          <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+          </svg>
+        </div>
+        <h3 class="font-semibold text-gray-900 dark:text-white mb-2">Drag & Drop</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+          Easily reorder your watchlist with intuitive drag and drop
+        </p>
+      </div>
+
+      <div class="text-center p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center mx-auto mb-4">
+          <svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path>
+          </svg>
+        </div>
+        <h3 class="font-semibold text-gray-900 dark:text-white mb-2">Local Storage</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+          Your data is stored locally in SQLite for privacy and speed
+        </p>
+      </div>
+
+      <div class="text-center p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div class="w-12 h-12 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center mx-auto mb-4">
+          <svg class="w-6 h-6 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+          </svg>
+        </div>
+        <h3 class="font-semibold text-gray-900 dark:text-white mb-2">Smart Features</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+          Series detection, ratings, and comprehensive anime information
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pass initial data to React component -->
+  <script define:vars={{ animeList, apiError }}>
+    window.initialAnimeData = animeList;
+    window.apiError = apiError;
+  </script>
+</Layout>

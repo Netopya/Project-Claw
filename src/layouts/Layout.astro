@@ -1,0 +1,253 @@
+---
+export interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = "Manage your anime watchlist with MyAnimeList integration" } = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content={description} />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- SEO Meta Tags -->
+    <meta name="author" content="Project Claw" />
+    <meta name="keywords" content="anime, watchlist, myanimelist, priority, management, tracker" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#2563eb" />
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Project Claw" />
+    <meta property="og:locale" content="en_US" />
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    
+    <!-- Favicon and Icons -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    
+    <!-- Preload critical fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+  </head>
+  <body class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div id="app" class="min-h-screen flex flex-col">
+      <!-- Header -->
+      <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex justify-between items-center h-16">
+            <div class="flex items-center">
+              <h1 class="text-xl font-bold text-gray-900 dark:text-white">
+                🎌 Project Claw
+              </h1>
+              <span class="ml-2 text-sm text-gray-500 dark:text-gray-400">
+                Anime Watchlist
+              </span>
+            </div>
+            <nav class="hidden sm:flex items-center space-x-4">
+              <a 
+                href="/" 
+                class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                aria-label="Go to watchlist"
+              >
+                Watchlist
+              </a>
+              <a 
+                href="/about" 
+                class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                aria-label="Learn about Project Claw"
+              >
+                About
+              </a>
+            </nav>
+            
+            <!-- Mobile menu button -->
+            <div class="sm:hidden">
+              <button 
+                id="mobile-menu-button"
+                type="button" 
+                class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 p-2 rounded-md"
+                aria-label="Toggle mobile menu"
+                aria-expanded="false"
+              >
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Mobile menu -->
+      <div id="mobile-menu" class="sm:hidden hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div class="px-4 py-2 space-y-1">
+          <a 
+            href="/" 
+            class="block text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-md text-base font-medium transition-colors"
+          >
+            Watchlist
+          </a>
+          <a 
+            href="/about" 
+            class="block text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-md text-base font-medium transition-colors"
+          >
+            About
+          </a>
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        <slot />
+      </main>
+
+      <!-- Footer -->
+      <footer class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div class="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
+            <p>© 2024 Project Claw. Built with Astro, React, and Hono.</p>
+            <div class="flex items-center space-x-4">
+              <span>Powered by MyAnimeList API</span>
+              <div class="flex items-center space-x-1">
+                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span class="text-xs">API Online</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <!-- Mobile menu toggle script -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+        
+        if (mobileMenuButton && mobileMenu) {
+          mobileMenuButton.addEventListener('click', function() {
+            const isExpanded = mobileMenuButton.getAttribute('aria-expanded') === 'true';
+            
+            mobileMenuButton.setAttribute('aria-expanded', (!isExpanded).toString());
+            
+            if (isExpanded) {
+              mobileMenu.classList.add('hidden');
+              mobileMenu.classList.remove('show');
+            } else {
+              mobileMenu.classList.remove('hidden');
+              mobileMenu.classList.add('show');
+            }
+          });
+
+          // Close mobile menu when clicking outside
+          document.addEventListener('click', function(event) {
+            if (!mobileMenuButton.contains(event.target) && !mobileMenu.contains(event.target)) {
+              mobileMenu.classList.add('hidden');
+              mobileMenu.classList.remove('show');
+              mobileMenuButton.setAttribute('aria-expanded', 'false');
+            }
+          });
+
+          // Close mobile menu on escape key
+          document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+              mobileMenu.classList.add('hidden');
+              mobileMenu.classList.remove('show');
+              mobileMenuButton.setAttribute('aria-expanded', 'false');
+            }
+          });
+        }
+      });
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  html {
+    font-family: system-ui, sans-serif;
+  }
+  
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100 dark:bg-gray-800;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400 dark:bg-gray-500;
+  }
+
+  /* Focus styles */
+  button:focus,
+  input:focus,
+  textarea:focus,
+  select:focus {
+    @apply outline-none ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900;
+  }
+
+  /* Smooth transitions */
+  * {
+    transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+  }
+
+  /* Mobile menu animations */
+  #mobile-menu {
+    transition: all 0.3s ease-in-out;
+  }
+
+  #mobile-menu.show {
+    display: block;
+    animation: slideDown 0.3s ease-out;
+  }
+
+  /* Improved accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* Print styles */
+  @media print {
+    header, footer, nav, #mobile-menu-button {
+      display: none !important;
+    }
+    
+    main {
+      margin: 0 !important;
+      padding: 0 !important;
+      max-width: none !important;
+    }
+  }
+</style>

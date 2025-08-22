@@ -1,12 +1,7 @@
 import type { MyAnimeListResponse, SeriesInfo, CreateAnimeData } from '../../types/anime.js';
 import { 
   transformToCreateAnimeData, 
-  validateAndTransformApiResponse,
-  normalizeTitle,
-  formatRating,
-  formatEpisodeCount,
-  formatPremiereDate,
-  generateSeriesBadge
+  validateAndTransformApiResponse
 } from './data-processor.js';
 
 /**

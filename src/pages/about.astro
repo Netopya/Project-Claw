@@ -1,0 +1,193 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="About - Project Claw" description="Learn about Project Claw, the anime watchlist management application">
+  <div class="max-w-4xl mx-auto space-y-8">
+    <!-- Page Header -->
+    <div class="text-center">
+      <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-4">
+        About Project Claw
+      </h1>
+      <p class="text-base sm:text-lg text-gray-600 dark:text-gray-400 px-4">
+        A modern anime watchlist management application built with cutting-edge web technologies
+      </p>
+    </div>
+
+    <!-- Main Content -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 lg:p-8">
+      <div class="prose dark:prose-invert max-w-none">
+        <h2>What is Project Claw?</h2>
+        <p>
+          Project Claw is a personal anime watchlist management application that helps you organize 
+          and prioritize the anime you want to watch. By integrating directly with the MyAnimeList API, 
+          it automatically fetches comprehensive anime information, making it easy to build and maintain 
+          your watchlist.
+        </p>
+
+        <h2>Key Features</h2>
+        <ul>
+          <li><strong>MyAnimeList Integration:</strong> Add anime by simply pasting MyAnimeList URLs</li>
+          <li><strong>Drag & Drop Reordering:</strong> Prioritize your watchlist with intuitive drag and drop</li>
+          <li><strong>Rich Anime Information:</strong> Automatic fetching of titles, ratings, episode counts, and more</li>
+          <li><strong>Series Detection:</strong> Smart recognition of anime series relationships (sequels, prequels)</li>
+          <li><strong>Local Storage:</strong> Your data stays private with local SQLite database storage</li>
+          <li><strong>Responsive Design:</strong> Works seamlessly on desktop and mobile devices</li>
+        </ul>
+
+        <h2>Technology Stack</h2>
+        <div class="grid sm:grid-cols-1 md:grid-cols-2 gap-6 not-prose">
+          <div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Frontend</h3>
+            <ul class="space-y-2 text-sm">
+              <li class="flex items-center space-x-2">
+                <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+                <span>Astro - Static site generation</span>
+              </li>
+              <li class="flex items-center space-x-2">
+                <span class="w-2 h-2 bg-cyan-500 rounded-full"></span>
+                <span>React - Interactive components</span>
+              </li>
+              <li class="flex items-center space-x-2">
+                <span class="w-2 h-2 bg-teal-500 rounded-full"></span>
+                <span>Tailwind CSS - Styling</span>
+              </li>
+              <li class="flex items-center space-x-2">
+                <span class="w-2 h-2 bg-purple-500 rounded-full"></span>
+                <span>@dnd-kit - Drag and drop</span>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Backend</h3>
+            <ul class="space-y-2 text-sm">
+              <li class="flex items-center space-x-2">
+                <span class="w-2 h-2 bg-orange-500 rounded-full"></span>
+                <span>Hono - Lightweight web framework</span>
+              </li>
+              <li class="flex items-center space-x-2">
+                <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                <span>SQLite - Local database</span>
+              </li>
+              <li class="flex items-center space-x-2">
+                <span class="w-2 h-2 bg-blue-600 rounded-full"></span>
+                <span>Drizzle ORM - Type-safe database queries</span>
+              </li>
+              <li class="flex items-center space-x-2">
+                <span class="w-2 h-2 bg-red-500 rounded-full"></span>
+                <span>TypeScript - Type safety</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <h2>Privacy & Data</h2>
+        <p>
+          Project Claw is designed with privacy in mind. All your watchlist data is stored locally 
+          in a SQLite database on your machine. The application only communicates with the MyAnimeList 
+          API to fetch public anime information when you add new titles to your list.
+        </p>
+
+        <h2>Getting Started</h2>
+        <ol>
+          <li>Make sure you have Docker installed on your system</li>
+          <li>Clone the Project Claw repository</li>
+          <li>Set up your MyAnimeList API credentials in the <code>.env</code> file</li>
+          <li>Run <code>docker-compose up --build</code> to start the application</li>
+          <li>Visit <code>http://localhost:3000</code> to access your watchlist</li>
+        </ol>
+
+        <h2>MyAnimeList API Setup</h2>
+        <p>
+          To use the MyAnimeList integration features, you'll need to create a MyAnimeList API application:
+        </p>
+        <ol>
+          <li>Visit <a href="https://myanimelist.net/apiconfig" target="_blank" rel="noopener noreferrer">MyAnimeList API Config</a></li>
+          <li>Create a new API application</li>
+          <li>Copy your Client ID and Client Secret</li>
+          <li>Add them to your <code>.env</code> file as <code>MAL_CLIENT_ID</code> and <code>MAL_CLIENT_SECRET</code></li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- API Status -->
+    <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6">
+      <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">System Status</h2>
+      <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <div class="flex items-center space-x-3">
+          <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+          <span class="text-sm text-gray-600 dark:text-gray-400">Frontend Online</span>
+        </div>
+        <div class="flex items-center space-x-3">
+          <div id="api-status" class="w-3 h-3 bg-yellow-500 rounded-full"></div>
+          <span class="text-sm text-gray-600 dark:text-gray-400">API Status: <span id="api-status-text">Checking...</span></span>
+        </div>
+        <div class="flex items-center space-x-3">
+          <div id="db-status" class="w-3 h-3 bg-yellow-500 rounded-full"></div>
+          <span class="text-sm text-gray-600 dark:text-gray-400">Database: <span id="db-status-text">Checking...</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Back to Watchlist -->
+    <div class="text-center">
+      <a 
+        href="/" 
+        class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+      >
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+        </svg>
+        Back to Watchlist
+      </a>
+    </div>
+  </div>
+
+  <!-- Status Check Script -->
+  <script>
+    async function checkSystemStatus() {
+      try {
+        // Check API status
+        const apiResponse = await fetch('/api/health');
+        const apiStatusEl = document.getElementById('api-status');
+        const apiStatusTextEl = document.getElementById('api-status-text');
+        
+        if (apiResponse.ok) {
+          apiStatusEl.className = 'w-3 h-3 bg-green-500 rounded-full animate-pulse';
+          apiStatusTextEl.textContent = 'Online';
+        } else {
+          apiStatusEl.className = 'w-3 h-3 bg-red-500 rounded-full';
+          apiStatusTextEl.textContent = 'Offline';
+        }
+
+        // Check database status
+        const dbResponse = await fetch('/api/health/database');
+        const dbStatusEl = document.getElementById('db-status');
+        const dbStatusTextEl = document.getElementById('db-status-text');
+        
+        if (dbResponse.ok) {
+          const dbData = await dbResponse.json();
+          if (dbData.database?.connected) {
+            dbStatusEl.className = 'w-3 h-3 bg-green-500 rounded-full animate-pulse';
+            dbStatusTextEl.textContent = 'Connected';
+          } else {
+            dbStatusEl.className = 'w-3 h-3 bg-red-500 rounded-full';
+            dbStatusTextEl.textContent = 'Disconnected';
+          }
+        } else {
+          dbStatusEl.className = 'w-3 h-3 bg-red-500 rounded-full';
+          dbStatusTextEl.textContent = 'Error';
+        }
+      } catch (error) {
+        console.error('Status check failed:', error);
+        document.getElementById('api-status').className = 'w-3 h-3 bg-red-500 rounded-full';
+        document.getElementById('api-status-text').textContent = 'Error';
+        document.getElementById('db-status').className = 'w-3 h-3 bg-red-500 rounded-full';
+        document.getElementById('db-status-text').textContent = 'Error';
+      }
+    }
+
+    // Check status on page load
+    checkSystemStatus();
+  </script>
+</Layout>

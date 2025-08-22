@@ -146,7 +146,8 @@ export function transformToCreateAnimeData(
     malId: malData.id,
     title: malData.title,
     titleEnglish: malData.alternative_titles?.en || null,
-    titleJapanese: malData.alternative_titles?.ja || null,
+    // Use the main title (romanized Japanese) instead of the Japanese characters
+    titleJapanese: malData.title || null,
     imageUrl: extractBestImageUrl(malData),
     rating: malData.mean || null,
     premiereDate: parseApiDate(malData.start_date),

@@ -6,8 +6,6 @@ import type { MyAnimeListResponse, SeriesInfo } from '../../types/anime.js';
 export class MyAnimeListService {
   private clientId: string;
   private clientSecret: string;
-  private accessToken: string | null = null;
-  private tokenExpiry: number = 0;
   private requestQueue: Array<() => Promise<any>> = [];
   private isProcessingQueue = false;
   private lastRequestTime = 0;
@@ -17,48 +15,17 @@ export class MyAnimeListService {
     this.clientId = clientId || process.env.MAL_CLIENT_ID || '';
     this.clientSecret = clientSecret || process.env.MAL_CLIENT_SECRET || '';
     
-    if (!this.clientId || !this.clientSecret) {
+    if (!this.clientId) {
       console.warn('MyAnimeList API credentials not configured. Some features may not work.');
     }
   }
 
   /**
-   * Get access token using client credentials flow
+   * Validate client ID is configured
    */
-  private async getAccessToken(): Promise<string> {
-    if (this.accessToken && Date.now() < this.tokenExpiry) {
-      return this.accessToken;
-    }
-
-    if (!this.clientId || !this.clientSecret) {
+  private validateClientId(): void {
+    if (!this.clientId) {
       throw new Error('MyAnimeList API credentials not configured');
-    }
-
-    try {
-      const response = await fetch('https://myanimelist.net/v1/oauth2/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          client_id: this.clientId,
-          client_secret: this.clientSecret,
-          grant_type: 'client_credentials',
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Authentication failed: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      this.accessToken = data.access_token;
-      this.tokenExpiry = Date.now() + (data.expires_in * 1000) - 60000; // Refresh 1 minute early
-
-      return this.accessToken;
-    } catch (error) {
-      console.error('Failed to get MyAnimeList access token:', error);
-      throw new Error('Failed to authenticate with MyAnimeList API');
     }
   }
 
@@ -76,10 +43,10 @@ export class MyAnimeListService {
             await new Promise(resolve => setTimeout(resolve, this.REQUEST_DELAY - timeSinceLastRequest));
           }
 
-          const token = await this.getAccessToken();
+          this.validateClientId();
           const response = await fetch(url, {
             headers: {
-              'Authorization': `Bearer ${token}`,
+              'X-MAL-CLIENT-ID': this.clientId,
               'Content-Type': 'application/json',
             },
           });
@@ -226,7 +193,7 @@ export class MyAnimeListService {
    * Check if the service is properly configured
    */
   isConfigured(): boolean {
-    return !!(this.clientId && this.clientSecret);
+    return !!this.clientId;
   }
 
   /**
@@ -234,7 +201,9 @@ export class MyAnimeListService {
    */
   async testConnection(): Promise<boolean> {
     try {
-      await this.getAccessToken();
+      this.validateClientId();
+      // Test with a simple anime request
+      await this.fetchAnimeData(1); // Test with anime ID 1
       return true;
     } catch (error) {
       console.error('MyAnimeList API connection test failed:', error);

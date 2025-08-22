@@ -98,14 +98,20 @@
   - _Requirements: 2.1, 2.4_
 
 - [ ] 7. Develop React components for interactive features
-- [ ] 7.1 Create AddAnimeForm component
+
+
+- [x] 7.1 Create AddAnimeForm component
+
+
   - Build form component with URL input and validation
   - Implement client-side URL format validation
   - Add loading states and error message display
   - Connect form submission to API endpoint
   - _Requirements: 1.1, 5.2_
 
-- [ ] 7.2 Create AnimeCard component
+- [x] 7.2 Create AnimeCard component
+
+
   - Build card component to display anime with all metadata
   - Implement responsive design for different screen sizes
   - Add remove button with confirmation dialog
@@ -113,7 +119,9 @@
   - Show series information badge when applicable
   - _Requirements: 2.1, 2.2, 4.1_
 
-- [ ] 7.3 Create WatchlistApp component
+- [x] 7.3 Create WatchlistApp component
+
+
   - Build main container component for watchlist functionality
   - Integrate @dnd-kit for drag-and-drop reordering
   - Implement state management for anime list and loading states

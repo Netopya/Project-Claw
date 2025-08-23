@@ -109,15 +109,6 @@ export function AnimeCard({ anime, onRemove, isDragging = false }: AnimeCardProp
     }
   };
 
-  const parseSeriesInfo = (seriesInfoString: string | null): any => {
-    if (!seriesInfoString) return null;
-    try {
-      return JSON.parse(seriesInfoString);
-    } catch {
-      return null;
-    }
-  };
-
   const formatSeriesInfo = (seriesInfo: any): string | null => {
     if (!seriesInfo || seriesInfo.totalSeries <= 1) return null;
 
@@ -134,8 +125,7 @@ export function AnimeCard({ anime, onRemove, isDragging = false }: AnimeCardProp
     return `Part ${currentPosition} of ${totalSeries}`;
   };
 
-  const seriesInfo = parseSeriesInfo(anime.seriesInfo);
-  const seriesLabel = formatSeriesInfo(seriesInfo);
+  const seriesLabel = formatSeriesInfo(anime.seriesInfo);
   const displayTitle = anime.titleEnglish || anime.title;
   const hasJapaneseTitle = anime.titleJapanese && anime.titleJapanese !== displayTitle;
 

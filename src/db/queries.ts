@@ -54,8 +54,8 @@ export async function addAnime(animeData: {
       .orderBy(desc(anime.priority))
       .limit(1);
 
-    const nextPriority = maxPriorityResult.length > 0 
-      ? (maxPriorityResult[0].maxPriority || 0) + 1 
+    const nextPriority = maxPriorityResult.length > 0
+      ? (maxPriorityResult[0].maxPriority || 0) + 1
       : 1;
 
     const newAnime = {
@@ -81,54 +81,94 @@ export async function addAnime(animeData: {
 
 // Update anime priorities for reordering
 export async function updateAnimePriorities(animeIds: number[]): Promise<void> {
+  console.log('🔄 Updating anime priorities:', animeIds);
+
+  if (!animeIds || animeIds.length === 0) {
+    throw new Error('No anime IDs provided');
+  }
+
   try {
-    // Use a transaction to ensure atomicity
-    await db.transaction(async (tx) => {
-      for (let i = 0; i < animeIds.length; i++) {
-        await tx
+    // First, let's verify the anime exist
+    const existingAnime = await db
+      .select({ id: anime.id, priority: anime.priority })
+      .from(anime)
+      .where(eq(anime.id, animeIds[0])); // Check first one as a test
+
+    console.log('🔍 Sample existing anime:', existingAnime);
+
+    // Update priorities sequentially (better-sqlite3 doesn't support async transactions)
+    for (let i = 0; i < animeIds.length; i++) {
+      const animeId = animeIds[i];
+      const newPriority = i + 1;
+
+      console.log(`📝 Setting anime ${animeId} to priority ${newPriority}`);
+
+      try {
+        const result = await db
           .update(anime)
-          .set({ 
-            priority: i + 1,
+          .set({
+            priority: newPriority,
             updatedAt: new Date().toISOString()
           })
-          .where(eq(anime.id, animeIds[i]));
+          .where(eq(anime.id, animeId));
+
+        console.log(`✅ Updated anime ${animeId}:`, result);
+      } catch (updateError) {
+        console.error(`❌ Failed to update anime ${animeId}:`, updateError);
+        throw updateError;
       }
-    });
+    }
+
+    console.log('🎉 Successfully updated all anime priorities');
   } catch (error) {
-    console.error('Error updating anime priorities:', error);
-    throw new Error('Failed to update anime order');
+    console.error('❌ Error updating anime priorities:', error);
+    console.error('📊 Error details:', {
+      message: error?.message,
+      name: error?.name,
+      stack: error?.stack,
+      animeIds,
+      animeIdsType: typeof animeIds,
+      firstIdType: typeof animeIds[0]
+    });
+    throw new Error(`Failed to update anime order: ${error?.message}`);
   }
 }
 
 // Delete anime
 export async function deleteAnime(id: number): Promise<void> {
   try {
-    await db.transaction(async (tx) => {
-      // Get the anime to be deleted
-      const animeToDelete = await tx
-        .select({ priority: anime.priority })
-        .from(anime)
-        .where(eq(anime.id, id))
-        .limit(1);
+    // Get the anime to be deleted first
+    const animeToDelete = await db
+      .select({ priority: anime.priority })
+      .from(anime)
+      .where(eq(anime.id, id))
+      .limit(1);
 
-      if (animeToDelete.length === 0) {
-        throw new Error('Anime not found');
-      }
+    if (animeToDelete.length === 0) {
+      throw new Error('Anime not found');
+    }
 
-      const deletedPriority = animeToDelete[0].priority;
+    const deletedPriority = animeToDelete[0].priority;
 
-      // Delete the anime
-      await tx.delete(anime).where(eq(anime.id, id));
+    // Delete the anime
+    await db.delete(anime).where(eq(anime.id, id));
 
-      // Adjust priorities of remaining anime
-      await tx
+    // Get all anime with priority higher than the deleted one
+    const animeToUpdate = await db
+      .select({ id: anime.id, priority: anime.priority })
+      .from(anime)
+      .where(anime.priority > deletedPriority);
+
+    // Update each anime's priority individually
+    for (const animeItem of animeToUpdate) {
+      await db
         .update(anime)
-        .set({ 
-          priority: anime.priority - 1,
+        .set({
+          priority: animeItem.priority - 1,
           updatedAt: new Date().toISOString()
         })
-        .where(anime.priority > deletedPriority);
-    });
+        .where(eq(anime.id, animeItem.id));
+    }
   } catch (error) {
     console.error('Error deleting anime:', error);
     throw new Error('Failed to delete anime');

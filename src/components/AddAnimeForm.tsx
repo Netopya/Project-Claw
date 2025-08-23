@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { handleApiResponse, getErrorMessage, retryWithDelay } from '../utils/errorHandling';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 interface AddAnimeFormProps {
   onAnimeAdded: (anime: any) => void;
@@ -21,6 +23,8 @@ export function AddAnimeForm({ onAnimeAdded, onError }: AddAnimeFormProps) {
     validationError: null,
     submitError: null,
   });
+
+  const { isOnline } = useNetworkStatus();
 
   // MyAnimeList URL validation regex
   const MAL_URL_REGEX = /^https?:\/\/(www\.)?myanimelist\.net\/anime\/(\d+)(\/.*)?$/i;
@@ -102,6 +106,13 @@ export function AddAnimeForm({ onAnimeAdded, onError }: AddAnimeFormProps) {
       return;
     }
 
+    if (!isOnline) {
+      const errorMessage = 'Cannot add anime while offline. Please check your connection.';
+      setState(prev => ({ ...prev, submitError: errorMessage }));
+      onError(errorMessage);
+      return;
+    }
+
     setState(prev => ({
       ...prev,
       isSubmitting: true,
@@ -110,15 +121,17 @@ export function AddAnimeForm({ onAnimeAdded, onError }: AddAnimeFormProps) {
     }));
 
     try {
-      const response = await fetch('http://localhost:3001/api/anime', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url }),
-      });
+      const data = await retryWithDelay(async () => {
+        const response = await fetch('http://localhost:3001/api/anime', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ url }),
+        });
 
-      const data = await response.json();
+        return await handleApiResponse(response);
+      }, 2); // Retry up to 2 times for adding anime
 
       if (data.success) {
         // Success - clear form and notify parent
@@ -132,16 +145,16 @@ export function AddAnimeForm({ onAnimeAdded, onError }: AddAnimeFormProps) {
         onAnimeAdded(data.data);
       } else {
         // API returned error
+        const errorMessage = data.message || 'Failed to add anime';
         setState(prev => ({
           ...prev,
           isSubmitting: false,
-          submitError: data.message || 'Failed to add anime',
+          submitError: errorMessage,
         }));
-        onError(data.message || 'Failed to add anime');
+        onError(errorMessage);
       }
     } catch (error) {
-      // Network or other error
-      const errorMessage = 'Failed to add anime. Please check your connection and try again.';
+      const errorMessage = getErrorMessage(error);
       setState(prev => ({
         ...prev,
         isSubmitting: false,

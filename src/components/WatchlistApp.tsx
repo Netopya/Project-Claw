@@ -1,31 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import * as DndKit from '@dnd-kit/core';
-const {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragOverlay,
-  DragEndEvent,
-} = DndKit;
-import * as DndKitSortable from '@dnd-kit/sortable';
-const {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} = DndKitSortable;
+import { useState, useEffect } from 'react';
+import { arrayMove } from '@dnd-kit/sortable';
 
-// Type definitions for drag events (using imported DragEndEvent from @dnd-kit/core)
+import { AddAnimeForm } from './AddAnimeForm';
+import { AnimeCard } from './AnimeCard';
+import { ToastContainer } from './Toast';
+import { OfflineIndicator } from './OfflineIndicator';
+import { WatchlistSkeleton } from './LoadingSkeleton';
+import { ClientOnlyDragDrop } from './ClientOnlyDragDrop';
+import { useToast } from '../hooks/useToast';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { handleApiResponse, getErrorMessage, retryWithDelay } from '../utils/errorHandling';
 
+// Type definitions for drag events
 interface DragStartEvent {
   active: { id: string | number };
 }
 
-import { AddAnimeForm } from './AddAnimeForm';
-import { AnimeCard } from './AnimeCard';
+interface DragEndEvent {
+  active: { id: string | number };
+  over: { id: string | number } | null;
+}
 
 interface Anime {
   id: number;
@@ -65,22 +59,8 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
     draggedAnime: null,
   });
 
-  const [notifications, setNotifications] = useState<Array<{
-    id: string;
-    type: 'success' | 'error';
-    message: string;
-  }>>([]);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
+  const { toasts, removeToast, success, error: showError } = useToast();
+  const { isOnline } = useNetworkStatus();
 
   // Load anime data on mount if not provided initially
   useEffect(() => {
@@ -93,8 +73,10 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      const response = await fetch('http://localhost:3001/api/anime');
-      const data = await response.json();
+      const data = await retryWithDelay(async () => {
+        const response = await fetch('http://localhost:3001/api/anime');
+        return await handleApiResponse(response);
+      }, 3); // Retry up to 3 times for loading data
 
       if (data.success) {
         setState(prev => ({
@@ -112,24 +94,10 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
     } catch (error) {
       setState(prev => ({
         ...prev,
-        error: 'Failed to connect to the server',
+        error: getErrorMessage(error),
         isLoading: false,
       }));
     }
-  };
-
-  const addNotification = (type: 'success' | 'error', message: string) => {
-    const id = Date.now().toString();
-    setNotifications(prev => [...prev, { id, type, message }]);
-
-    // Auto-remove after 5 seconds
-    setTimeout(() => {
-      setNotifications(prev => prev.filter(n => n.id !== id));
-    }, 5000);
-  };
-
-  const removeNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
   const handleAnimeAdded = (newAnime: Anime) => {
@@ -137,16 +105,22 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
       ...prev,
       anime: [...prev.anime, newAnime].sort((a, b) => a.priority - b.priority),
     }));
-    addNotification('success', `Added "${newAnime.titleEnglish || newAnime.title}" to your watchlist!`);
+    success(`Added "${newAnime.titleEnglish || newAnime.title}" to your watchlist!`);
   };
 
-  const handleError = (error: string) => {
-    addNotification('error', error);
+  const handleError = (errorMessage: string) => {
+    showError(errorMessage);
   };
 
   const handleRemoveAnime = async (animeId: number) => {
     const animeToRemove = state.anime.find(a => a.id === animeId);
     if (!animeToRemove) return;
+
+    // Check network status
+    if (!isOnline) {
+      showError('Cannot remove anime while offline. Please check your connection.');
+      return;
+    }
 
     // Optimistically remove from UI
     setState(prev => ({
@@ -155,11 +129,12 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
     }));
 
     try {
-      const response = await fetch(`http://localhost:3001/api/anime/${animeId}`, {
-        method: 'DELETE',
-      });
-
-      const data = await response.json();
+      const data = await retryWithDelay(async () => {
+        const response = await fetch(`http://localhost:3001/api/anime/${animeId}`, {
+          method: 'DELETE',
+        });
+        return await handleApiResponse(response);
+      }, 2); // Retry up to 2 times for delete operations
 
       if (data.success) {
         // Update with server response to ensure correct priorities
@@ -167,14 +142,14 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
           ...prev,
           anime: data.data.remainingAnime,
         }));
-        addNotification('success', `Removed "${animeToRemove.titleEnglish || animeToRemove.title}" from your watchlist`);
+        success(`Removed "${animeToRemove.titleEnglish || animeToRemove.title}" from your watchlist`);
       } else {
         // Revert optimistic update
         setState(prev => ({
           ...prev,
           anime: [...prev.anime, animeToRemove].sort((a, b) => a.priority - b.priority),
         }));
-        addNotification('error', data.message || 'Failed to remove anime');
+        showError(data.message || 'Failed to remove anime');
       }
     } catch (error) {
       // Revert optimistic update
@@ -182,7 +157,7 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
         ...prev,
         anime: [...prev.anime, animeToRemove].sort((a, b) => a.priority - b.priority),
       }));
-      addNotification('error', 'Failed to remove anime. Please try again.');
+      showError(getErrorMessage(error));
     }
   };
 
@@ -201,6 +176,12 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
       return;
     }
 
+    // Check network status
+    if (!isOnline) {
+      showError('Cannot reorder anime while offline. Please check your connection.');
+      return;
+    }
+
     const oldIndex = state.anime.findIndex(anime => anime.id === active.id);
     const newIndex = state.anime.findIndex(anime => anime.id === over.id);
 
@@ -215,15 +196,16 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
     try {
       // Send new order to server
       const animeIds = newAnimeOrder.map(anime => anime.id);
-      const response = await fetch('http://localhost:3001/api/anime/reorder', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ animeIds }),
-      });
-
-      const data = await response.json();
+      const data = await retryWithDelay(async () => {
+        const response = await fetch('http://localhost:3001/api/anime/reorder', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ animeIds }),
+        });
+        return await handleApiResponse(response);
+      }, 2); // Retry up to 2 times for reorder operations
 
       if (data.success) {
         // Update with server response to ensure correct priorities
@@ -239,7 +221,7 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
           anime: state.anime,
           isReordering: false,
         }));
-        addNotification('error', data.message || 'Failed to reorder anime');
+        showError(data.message || 'Failed to reorder anime');
       }
     } catch (error) {
       // Revert to original order
@@ -248,7 +230,7 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
         anime: state.anime,
         isReordering: false,
       }));
-      addNotification('error', 'Failed to reorder anime. Please try again.');
+      showError(getErrorMessage(error));
     }
   };
 
@@ -258,68 +240,18 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
 
   if (state.isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="animate-pulse">
-          <div className="h-48 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
-        </div>
-        <div className="space-y-4">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="animate-pulse">
-              <div className="flex">
-                <div className="w-24 h-32 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
-                <div className="flex-1 ml-4 space-y-2">
-                  <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <>
+        <OfflineIndicator />
+        <WatchlistSkeleton />
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
+      </>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Notifications */}
-      {notifications.length > 0 && (
-        <div className="fixed top-4 right-4 z-50 space-y-2">
-          {notifications.map(notification => (
-            <div
-              key={notification.id}
-              className={`
-                max-w-sm p-4 rounded-lg shadow-lg border flex items-center justify-between
-                ${notification.type === 'success' 
-                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200'
-                  : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
-                }
-              `}
-            >
-              <div className="flex items-center">
-                {notification.type === 'success' ? (
-                  <svg className="w-5 h-5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                )}
-                <span className="text-sm font-medium">{notification.message}</span>
-              </div>
-              <button
-                onClick={() => removeNotification(notification.id)}
-                className="ml-2 text-current opacity-70 hover:opacity-100"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+    <>
+      <OfflineIndicator />
+      <div className="space-y-6">
 
       {/* Add Anime Form */}
       <AddAnimeForm onAnimeAdded={handleAnimeAdded} onError={handleError} />
@@ -395,38 +327,33 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
             </div>
           ) : (
             // Anime List with Drag and Drop
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
+            <ClientOnlyDragDrop
+              items={state.anime.map(a => a.id)}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
-
-            >
-              <SortableContext items={state.anime.map(a => a.id)} strategy={verticalListSortingStrategy}>
-                <div className="space-y-4">
-                  {state.anime.map((anime) => (
-                    <AnimeCard
-                      key={anime.id}
-                      anime={anime}
-                      onRemove={handleRemoveAnime}
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-
-              <DragOverlay>
-                {state.draggedAnime ? (
+              dragOverlay={
+                state.draggedAnime ? (
                   <AnimeCard
                     anime={state.draggedAnime}
                     onRemove={() => {}}
                     isDragging={true}
                   />
-                ) : null}
-              </DragOverlay>
-            </DndContext>
+                ) : null
+              }
+            >
+              {state.anime.map((anime) => (
+                <AnimeCard
+                  key={anime.id}
+                  anime={anime}
+                  onRemove={handleRemoveAnime}
+                />
+              ))}
+            </ClientOnlyDragDrop>
           )}
         </div>
       </div>
-    </div>
+      </div>
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+    </>
   );
 }

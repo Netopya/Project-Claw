@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import * as DndKitSortable from '@dnd-kit/sortable';
 import * as DndKitUtilities from '@dnd-kit/utilities';
 

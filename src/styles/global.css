@@ -127,6 +127,74 @@ body {
   @apply border-l-4 border-l-blue-500;
 }
 
+/* Enhanced animations */
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}
+
+.animate-slide-down {
+  animation: slide-down 0.3s ease-out;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-in;
+}
+
+/* Pulse animation for loading states */
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Error state styles */
+.error-state {
+  @apply bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-lg p-4;
+}
+
+.error-state-icon {
+  @apply w-5 h-5 text-red-600 dark:text-red-400;
+}
+
+.error-state-text {
+  @apply text-red-800 dark:text-red-200;
+}
+
+/* Retry button styles */
+.retry-button {
+  @apply px-3 py-1 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors;
+}
+
+/* Offline indicator styles */
+.offline-indicator {
+  @apply fixed top-0 left-0 right-0 z-50 p-3 text-center text-sm font-medium transition-all duration-300;
+}
+
 /* Responsive utilities */
 @media (max-width: 640px) {
   .mobile-full {

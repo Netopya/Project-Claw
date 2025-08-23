@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import * as DndKitSortable from '@dnd-kit/sortable';
 import * as DndKitUtilities from '@dnd-kit/utilities';
 
@@ -30,7 +30,23 @@ interface AnimeCardProps {
 export function AnimeCard({ anime, onRemove, isDragging = false }: AnimeCardProps) {
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [imageLoading, setImageLoading] = useState(true);
+  const [imageLoading, setImageLoading] = useState(!!anime.imageUrl);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  // Reset image state when anime changes
+  useEffect(() => {
+    setImageError(false);
+    setImageLoading(!!anime.imageUrl);
+  }, [anime.imageUrl, anime.id]);
+
+  // Check if image is already loaded (for cached images)
+  useEffect(() => {
+    const img = imgRef.current;
+    if (img && img.complete && img.naturalHeight !== 0) {
+      console.log('Image already loaded (cached):', anime.title);
+      setImageLoading(false);
+    }
+  }, [anime.imageUrl, anime.title]);
 
   const {
     attributes,
@@ -59,11 +75,13 @@ export function AnimeCard({ anime, onRemove, isDragging = false }: AnimeCardProp
     setShowRemoveConfirm(false);
   };
 
-  const handleImageLoad = () => {
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    console.log('Image loaded:', anime.title, e.currentTarget.src);
     setImageLoading(false);
   };
 
-  const handleImageError = () => {
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    console.log('Image error:', anime.title, e.currentTarget.src);
     setImageError(true);
     setImageLoading(false);
   };
@@ -82,9 +100,9 @@ export function AnimeCard({ anime, onRemove, isDragging = false }: AnimeCardProp
     if (!dateString) return 'Unknown';
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'short' 
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short'
       });
     } catch {
       return 'Unknown';
@@ -102,17 +120,17 @@ export function AnimeCard({ anime, onRemove, isDragging = false }: AnimeCardProp
 
   const formatSeriesInfo = (seriesInfo: any): string | null => {
     if (!seriesInfo || seriesInfo.totalSeries <= 1) return null;
-    
+
     const { totalSeries, currentPosition } = seriesInfo;
-    
+
     if (totalSeries === 2) {
       return currentPosition === 1 ? 'Part 1 of 2' : 'Part 2 of 2';
     }
-    
+
     if (totalSeries <= 4) {
       return `Season ${currentPosition} of ${totalSeries}`;
     }
-    
+
     return `Part ${currentPosition} of ${totalSeries}`;
   };
 
@@ -129,37 +147,27 @@ export function AnimeCard({ anime, onRemove, isDragging = false }: AnimeCardProp
         group relative bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700
         hover:shadow-md transition-all duration-200 overflow-hidden
         ${isSortableDragging ? 'opacity-50 shadow-lg scale-105' : ''}
-        ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}
       `}
     >
-      {/* Drag Handle */}
-      <div
-        {...attributes}
-        {...listeners}
-        className="absolute top-2 right-2 z-10 p-2 rounded-lg bg-gray-100 dark:bg-gray-700 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
-        title="Drag to reorder"
-      >
-        <svg className="w-4 h-4 text-gray-600 dark:text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-        </svg>
-      </div>
-
-      <div className="flex">
+      <div className="flex items-stretch">
         {/* Image Section */}
-        <div className="flex-shrink-0 w-24 sm:w-32 h-32 sm:h-40 relative bg-gray-100 dark:bg-gray-700">
-          {imageLoading && (
-            <div className="absolute inset-0 flex items-center justify-center">
+        <div className="flex-shrink-0 w-24 sm:w-32 h-32 sm:h-40 relative bg-gray-100 dark:bg-gray-700 self-center">
+          {/* Loading spinner - only show when we have an image URL and it's loading */}
+          {imageLoading && anime.imageUrl && !imageError && (
+            <div className="absolute inset-0 flex items-center justify-center z-10">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
             </div>
           )}
-          
+
           {anime.imageUrl && !imageError ? (
             <img
+              ref={imgRef}
               src={anime.imageUrl}
               alt={displayTitle}
-              className={`w-full h-full object-cover ${imageLoading ? 'opacity-0' : 'opacity-100'} transition-opacity`}
+              className={`w-full h-full object-cover ${imageLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
               onLoad={handleImageLoad}
               onError={handleImageError}
+              loading="lazy"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
@@ -237,6 +245,20 @@ export function AnimeCard({ anime, onRemove, isDragging = false }: AnimeCardProp
                 View on MyAnimeList
               </a>
             </div>
+          </div>
+        </div>
+
+        {/* Drag Handle - spans full height */}
+        <div className="flex-shrink-0 flex">
+          <div
+            {...attributes}
+            {...listeners}
+            className="px-3 bg-gray-100 dark:bg-gray-700 cursor-grab active:cursor-grabbing flex items-center justify-center h-full"
+            title="Drag to reorder"
+          >
+            <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+            </svg>
           </div>
         </div>
       </div>

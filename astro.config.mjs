@@ -10,9 +10,17 @@ export default defineConfig({
   output: 'static',
   server: {
     port: 3000,
-    host: true,
+    host: '0.0.0.0',
     proxy: {
       '/api': 'http://localhost:3001'
+    }
+  },
+  vite: {
+    server: {
+      watch: {
+        usePolling: true,
+        interval: 1000
+      }
     }
   }
 });

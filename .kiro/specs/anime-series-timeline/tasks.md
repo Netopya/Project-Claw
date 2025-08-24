@@ -130,7 +130,13 @@
   - Include loading states and error handling for popover content
   - _Requirements: 2.3_
 
-- [ ] 8. Enhance AnimeCard component with timeline integration
+- [x] 8. Enhance AnimeCard component with timeline integration
+
+
+
+
+
+
   - Modify existing AnimeCard component to accept and display timeline data
   - Integrate TimelineBadges component into card layout
   - Update card styling to accommodate timeline badges without breaking existing design

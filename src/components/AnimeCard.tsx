@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import * as DndKitSortable from '@dnd-kit/sortable';
 import * as DndKitUtilities from '@dnd-kit/utilities';
+import { TimelineBadges } from './TimelineBadges';
+import type { SeriesTimeline } from '../types/timeline';
 
 const { useSortable } = DndKitSortable;
 const { CSS } = DndKitUtilities;
@@ -25,9 +27,19 @@ interface AnimeCardProps {
   anime: Anime;
   onRemove: (id: number) => void;
   isDragging?: boolean;
+  timeline?: SeriesTimeline | null;
+  timelineLoading?: boolean;
+  timelineError?: string | null;
 }
 
-export function AnimeCard({ anime, onRemove, isDragging = false }: AnimeCardProps) {
+export function AnimeCard({ 
+  anime, 
+  onRemove, 
+  isDragging = false, 
+  timeline = null, 
+  timelineLoading = false, 
+  timelineError = null 
+}: AnimeCardProps) {
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(!!anime.imageUrl);
@@ -136,7 +148,7 @@ export function AnimeCard({ anime, onRemove, isDragging = false }: AnimeCardProp
       className={`
         group relative bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700
         hover:shadow-md transition-all duration-200 overflow-hidden
-        ${isSortableDragging ? 'opacity-50 shadow-lg scale-105' : ''}
+        ${(isSortableDragging || isDragging) ? 'opacity-50 shadow-lg scale-105' : ''}
       `}
     >
       <div className="flex items-stretch">
@@ -236,6 +248,30 @@ export function AnimeCard({ anime, onRemove, isDragging = false }: AnimeCardProp
               </a>
             </div>
           </div>
+
+          {/* Timeline Section */}
+          {(timeline || timelineLoading || timelineError) && (
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              {timeline ? (
+                <TimelineBadges 
+                  timeline={timeline}
+                  currentMalId={anime.malId}
+                />
+              ) : timelineLoading ? (
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Loading timeline...</span>
+                </div>
+              ) : timelineError ? (
+                <div className="flex items-center space-x-2 text-red-600 dark:text-red-400">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-sm">Timeline unavailable</span>
+                </div>
+              ) : null}
+            </div>
+          )}
         </div>
 
         {/* Drag Handle - spans full height */}

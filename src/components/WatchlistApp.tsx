@@ -10,6 +10,7 @@ import { ClientOnlyDragDrop } from './ClientOnlyDragDrop';
 import { useToast } from '../hooks/useToast';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { handleApiResponse, getErrorMessage, retryWithDelay } from '../utils/errorHandling';
+import type { SeriesTimeline } from '../types/timeline';
 
 // Type definitions for drag events
 interface DragStartEvent {
@@ -42,12 +43,21 @@ interface WatchlistAppProps {
   apiError?: string | null;
 }
 
+interface TimelineState {
+  [malId: number]: {
+    timeline: SeriesTimeline | null;
+    loading: boolean;
+    error: string | null;
+  };
+}
+
 interface AppState {
   anime: Anime[];
   isLoading: boolean;
   error: string | null;
   isReordering: boolean;
   draggedAnime: Anime | null;
+  timelines: TimelineState;
 }
 
 export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAppProps) {
@@ -57,6 +67,7 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
     error: apiError,
     isReordering: false,
     draggedAnime: null,
+    timelines: {},
   });
 
   const { toasts, removeToast, success, error: showError } = useToast();
@@ -68,6 +79,13 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
       loadAnimeData();
     }
   }, []);
+
+  // Load timeline data for anime when anime list changes
+  useEffect(() => {
+    if (state.anime.length > 0 && isOnline) {
+      loadTimelineData();
+    }
+  }, [state.anime, isOnline]);
 
   const loadAnimeData = async () => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
@@ -100,12 +118,158 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
     }
   };
 
+  const loadTimelineData = async () => {
+    // Only load timelines for anime that don't already have timeline data
+    const animeNeedingTimelines = state.anime.filter(anime => 
+      !state.timelines[anime.malId] || 
+      (!state.timelines[anime.malId].timeline && !state.timelines[anime.malId].loading)
+    );
+
+    if (animeNeedingTimelines.length === 0) return;
+
+    // Set loading state for all anime that need timelines
+    setState(prev => ({
+      ...prev,
+      timelines: {
+        ...prev.timelines,
+        ...animeNeedingTimelines.reduce((acc, anime) => ({
+          ...acc,
+          [anime.malId]: {
+            timeline: null,
+            loading: true,
+            error: null,
+          }
+        }), {})
+      }
+    }));
+
+    // Load timelines in parallel with a small delay between requests to avoid overwhelming the API
+    const timelinePromises = animeNeedingTimelines.map((anime, index) => 
+      new Promise(resolve => {
+        setTimeout(async () => {
+          try {
+            const data = await retryWithDelay(async () => {
+              const response = await fetch(`http://localhost:3001/api/anime/${anime.malId}/timeline`);
+              return await handleApiResponse(response);
+            }, 2); // Retry up to 2 times for timeline data
+
+            if (data.success && data.data) {
+              setState(prev => ({
+                ...prev,
+                timelines: {
+                  ...prev.timelines,
+                  [anime.malId]: {
+                    timeline: data.data,
+                    loading: false,
+                    error: null,
+                  }
+                }
+              }));
+            } else {
+              setState(prev => ({
+                ...prev,
+                timelines: {
+                  ...prev.timelines,
+                  [anime.malId]: {
+                    timeline: null,
+                    loading: false,
+                    error: data.message || 'Failed to load timeline',
+                  }
+                }
+              }));
+            }
+          } catch (error) {
+            setState(prev => ({
+              ...prev,
+              timelines: {
+                ...prev.timelines,
+                [anime.malId]: {
+                  timeline: null,
+                  loading: false,
+                  error: getErrorMessage(error),
+                }
+              }
+            }));
+          }
+          resolve(void 0);
+        }, index * 100); // Stagger requests by 100ms
+      })
+    );
+
+    await Promise.all(timelinePromises);
+  };
+
   const handleAnimeAdded = (newAnime: Anime) => {
     setState(prev => ({
       ...prev,
       anime: [...prev.anime, newAnime].sort((a, b) => a.priority - b.priority),
     }));
     success(`Added "${newAnime.titleEnglish || newAnime.title}" to your watchlist!`);
+    
+    // Load timeline data for the new anime if online
+    if (isOnline) {
+      loadTimelineForAnime(newAnime.malId);
+    }
+  };
+
+  const loadTimelineForAnime = async (malId: number) => {
+    // Set loading state
+    setState(prev => ({
+      ...prev,
+      timelines: {
+        ...prev.timelines,
+        [malId]: {
+          timeline: null,
+          loading: true,
+          error: null,
+        }
+      }
+    }));
+
+    try {
+      const data = await retryWithDelay(async () => {
+        const response = await fetch(`http://localhost:3001/api/anime/${malId}/timeline`);
+        return await handleApiResponse(response);
+      }, 2);
+
+      if (data.success && data.data) {
+        setState(prev => ({
+          ...prev,
+          timelines: {
+            ...prev.timelines,
+            [malId]: {
+              timeline: data.data,
+              loading: false,
+              error: null,
+            }
+          }
+        }));
+      } else {
+        setState(prev => ({
+          ...prev,
+          timelines: {
+            ...prev.timelines,
+            [malId]: {
+              timeline: null,
+              loading: false,
+              error: data.message || 'Failed to load timeline',
+            }
+          }
+        }));
+      }
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        timelines: {
+          ...prev.timelines,
+          [malId]: {
+            timeline: null,
+            loading: false,
+            error: getErrorMessage(error),
+          }
+        }
+      }));
+    }
   };
 
   const handleError = (errorMessage: string) => {
@@ -337,17 +501,26 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
                     anime={state.draggedAnime}
                     onRemove={() => {}}
                     isDragging={true}
+                    timeline={state.timelines[state.draggedAnime.malId]?.timeline || null}
+                    timelineLoading={state.timelines[state.draggedAnime.malId]?.loading || false}
+                    timelineError={state.timelines[state.draggedAnime.malId]?.error || null}
                   />
                 ) : null
               }
             >
-              {state.anime.map((anime) => (
-                <AnimeCard
-                  key={anime.id}
-                  anime={anime}
-                  onRemove={handleRemoveAnime}
-                />
-              ))}
+              {state.anime.map((anime) => {
+                const timelineState = state.timelines[anime.malId];
+                return (
+                  <AnimeCard
+                    key={anime.id}
+                    anime={anime}
+                    onRemove={handleRemoveAnime}
+                    timeline={timelineState?.timeline || null}
+                    timelineLoading={timelineState?.loading || false}
+                    timelineError={timelineState?.error || null}
+                  />
+                );
+              })}
             </ClientOnlyDragDrop>
           )}
         </div>

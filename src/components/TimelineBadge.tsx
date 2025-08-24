@@ -15,9 +15,11 @@ export function TimelineBadge({
   onHover 
 }: TimelineBadgeProps) {
   const badgeRef = useRef<HTMLDivElement>(null);
-  const formatYear = (date: Date | null): string => {
+  const formatYear = (date: Date | string | null): string => {
     if (!date) return '?';
-    return date.getFullYear().toString();
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(dateObj.getTime())) return '?';
+    return dateObj.getFullYear().toString();
   };
   
   const formatEpisodeCount = (count: number | null, duration: number | null): string => {

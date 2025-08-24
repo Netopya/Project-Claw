@@ -455,15 +455,27 @@ export async function batchInsertAnimeRelationships(relationships: NewAnimeRelat
   try {
     if (relationships.length === 0) return;
 
-    // Insert relationships one by one to handle duplicates gracefully
+    // Insert relationships one by one to handle duplicates and foreign key constraints gracefully
+    let successCount = 0;
+    let skipCount = 0;
+    
     for (const relationship of relationships) {
       try {
         await upsertAnimeRelationship(relationship);
-      } catch (error) {
-        console.warn('Failed to insert relationship:', relationship, error);
+        successCount++;
+      } catch (error: any) {
+        if (error?.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
+          console.warn(`⚠️ Skipping relationship ${relationship.sourceMalId}→${relationship.targetMalId}: Referenced anime not in database`);
+          skipCount++;
+        } else {
+          console.warn('Failed to insert relationship:', relationship, error);
+          skipCount++;
+        }
         // Continue with other relationships
       }
     }
+    
+    console.log(`📊 Relationship batch complete: ${successCount} inserted, ${skipCount} skipped`);
   } catch (error) {
     console.error('Error batch inserting anime relationships:', error);
     throw new Error('Failed to save anime relationships');

@@ -149,7 +149,7 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
         setTimeout(async () => {
           try {
             const data = await retryWithDelay(async () => {
-              const response = await fetch(`http://localhost:3001/api/anime/${anime.malId}/timeline`);
+              const response = await fetch(`http://localhost:3001/api/anime/${anime.id}/timeline`);
               return await handleApiResponse(response);
             }, 2); // Retry up to 2 times for timeline data
 
@@ -159,7 +159,7 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
                 timelines: {
                   ...prev.timelines,
                   [anime.malId]: {
-                    timeline: data.data,
+                    timeline: data.data.timeline,
                     loading: false,
                     error: null,
                   }
@@ -208,11 +208,11 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
     
     // Load timeline data for the new anime if online
     if (isOnline) {
-      loadTimelineForAnime(newAnime.malId);
+      loadTimelineForAnime(newAnime.id, newAnime.malId);
     }
   };
 
-  const loadTimelineForAnime = async (malId: number) => {
+  const loadTimelineForAnime = async (animeId: number, malId: number) => {
     // Set loading state
     setState(prev => ({
       ...prev,
@@ -228,7 +228,7 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
 
     try {
       const data = await retryWithDelay(async () => {
-        const response = await fetch(`http://localhost:3001/api/anime/${malId}/timeline`);
+        const response = await fetch(`http://localhost:3001/api/anime/${animeId}/timeline`);
         return await handleApiResponse(response);
       }, 2);
 
@@ -238,7 +238,7 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
           timelines: {
             ...prev.timelines,
             [malId]: {
-              timeline: data.data,
+              timeline: data.data.timeline,
               loading: false,
               error: null,
             }

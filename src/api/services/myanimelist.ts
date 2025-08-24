@@ -6,6 +6,7 @@ import type {
   AnimeStatus, 
   RelationshipType 
 } from '../../types/timeline.js';
+import type { NewAnimeRelationship } from '../../db/schema.js';
 
 // Enhanced API response interfaces
 export interface EnhancedMyAnimeListResponse extends MyAnimeListResponse {
@@ -291,23 +292,22 @@ export class MyAnimeListService {
   /**
    * Process comprehensive relationship data from MyAnimeList API responses
    */
-  async processAnimeRelationships(animeData: EnhancedMyAnimeListResponse): Promise<AnimeRelationship[]> {
+  async processAnimeRelationships(animeData: EnhancedMyAnimeListResponse): Promise<NewAnimeRelationship[]> {
     if (!animeData.related_anime || animeData.related_anime.length === 0) {
       return [];
     }
 
-    const relationships: AnimeRelationship[] = [];
+    const relationships: NewAnimeRelationship[] = [];
     
     try {
       for (const relatedAnime of animeData.related_anime) {
         const relationshipType = this.mapRelationshipType(relatedAnime.relation_type);
         
         relationships.push({
-          id: 0, // Will be set by database
           sourceMalId: animeData.id,
           targetMalId: relatedAnime.node.id,
           relationshipType,
-          createdAt: new Date()
+          createdAt: new Date().toISOString()
         });
       }
 
@@ -407,7 +407,7 @@ export class MyAnimeListService {
    */
   async getComprehensiveAnimeInfo(malId: number): Promise<{
     animeInfo: Omit<AnimeInfo, 'id' | 'createdAt' | 'updatedAt'>;
-    relationships: AnimeRelationship[];
+    relationships: NewAnimeRelationship[];
     seriesInfo: SeriesInfo | null;
   }> {
     try {
@@ -433,7 +433,7 @@ export class MyAnimeListService {
   async batchGetComprehensiveAnimeInfo(malIds: number[]): Promise<{
     success: Array<{
       animeInfo: Omit<AnimeInfo, 'id' | 'createdAt' | 'updatedAt'>;
-      relationships: AnimeRelationship[];
+      relationships: NewAnimeRelationship[];
       seriesInfo: SeriesInfo | null;
     }>;
     errors: Array<{

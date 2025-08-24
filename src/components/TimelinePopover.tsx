@@ -118,9 +118,11 @@ export function TimelinePopover({ entry, onClose, anchorElement }: TimelinePopov
     return () => window.removeEventListener('resize', handleResize);
   }, [anchorElement]);
 
-  const formatDate = (date: Date | null): string => {
+  const formatDate = (date: Date | string | null): string => {
     if (!date) return 'Unknown';
-    return date.toLocaleDateString('en-US', {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(dateObj.getTime())) return 'Unknown';
+    return dateObj.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'

@@ -37,7 +37,7 @@ export interface AnimeRelationship {
   sourceMalId: number;
   targetMalId: number;
   relationshipType: RelationshipType;
-  createdAt: Date;
+  createdAt: string; // ISO string to match database schema
 }
 
 export interface TimelineEntry {
@@ -45,7 +45,7 @@ export interface TimelineEntry {
   title: string;
   titleEnglish: string | null;
   animeType: AnimeType;
-  premiereDate: Date | null;
+  premiereDate: Date | string | null; // Can be Date object or ISO string
   numEpisodes: number | null;
   episodeDuration: number | null;
   chronologicalOrder: number;

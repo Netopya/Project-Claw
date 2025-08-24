@@ -1,11 +1,11 @@
 import { MyAnimeListService } from './myanimelist.js';
 import { parseMyAnimeListUrl } from '../utils/url-parser.js';
 import { transformMyAnimeListData } from '../utils/data-transformer.js';
-import { 
-  handleMyAnimeListError, 
-  ValidationError, 
-  logError, 
-  retryWithBackoff 
+import {
+  handleMyAnimeListError,
+  ValidationError,
+  logError,
+  retryWithBackoff
 } from '../utils/error-handler.js';
 import { getWatchlistEntryByMalId, addAnimeToWatchlist } from '../../db/queries.js';
 
@@ -21,7 +21,7 @@ export class AnimeService {
   }
 
   /**
-   * Add anime from MyAnimeList URL
+   * Add anime from MyAnimeList URL with comprehensive relationship processing
    */
   async addAnimeFromUrl(url: string) {
     try {
@@ -39,37 +39,51 @@ export class AnimeService {
         throw new ValidationError('This anime is already in your watchlist');
       }
 
-      // Fetch anime data from MyAnimeList with retry logic
-      const { animeData, seriesInfo } = await retryWithBackoff(
-        () => this.malService.getAnimeInfo(malId),
+      console.log(`🔄 Fetching comprehensive anime data for MAL ID: ${malId}`);
+
+      // Fetch comprehensive anime data including relationships
+      const { animeInfo, relationships } = await retryWithBackoff(
+        () => this.malService.getComprehensiveAnimeInfo(malId),
         3,
         'AnimeService.addAnimeFromUrl'
       );
 
-      // Transform data to our new format
+      console.log(`📊 Found ${relationships.length} relationships for anime: ${animeInfo.title}`);
+
+      // Transform data to our watchlist format
       const watchlistData = {
-        malId: animeData.id,
-        title: animeData.title,
-        titleEnglish: animeData.alternative_titles?.en || null,
-        titleJapanese: animeData.alternative_titles?.ja || null,
-        imageUrl: animeData.main_picture?.large || animeData.main_picture?.medium || null,
-        rating: animeData.mean || null,
-        premiereDate: animeData.start_date ? new Date(animeData.start_date) : null,
-        numEpisodes: animeData.num_episodes || null,
-        episodeDuration: animeData.average_episode_duration ? Math.round(animeData.average_episode_duration / 60) : null,
-        animeType: animeData.media_type || 'unknown',
-        status: animeData.status || null,
-        source: animeData.source || null,
-        studios: animeData.studios?.map(studio => studio.name) || [],
-        genres: animeData.genres?.map(genre => genre.name) || [],
+        malId: animeInfo.malId,
+        title: animeInfo.title,
+        titleEnglish: animeInfo.titleEnglish,
+        titleJapanese: animeInfo.titleJapanese,
+        imageUrl: animeInfo.imageUrl,
+        rating: animeInfo.rating,
+        premiereDate: animeInfo.premiereDate,
+        numEpisodes: animeInfo.numEpisodes,
+        episodeDuration: animeInfo.episodeDuration,
+        animeType: animeInfo.animeType,
+        status: animeInfo.status,
+        source: animeInfo.source,
+        studios: animeInfo.studios,
+        genres: animeInfo.genres,
         watchStatus: 'plan_to_watch',
       };
 
-      // Add to watchlist
+      // Add to watchlist (this will also upsert the anime info)
       const newEntry = await addAnimeToWatchlist(watchlistData);
 
-      console.log(`Successfully added anime to watchlist: ${newEntry.animeInfo.title} (MAL ID: ${malId})`);
-      
+      // Process related anime FIRST to ensure they exist in the database
+      await this.processRelatedAnime(relationships);
+
+      // Store relationship data AFTER related anime are in the database
+      if (relationships.length > 0) {
+        console.log(`💾 Storing ${relationships.length} relationships`);
+        const { batchInsertAnimeRelationships } = await import('../../db/queries.js');
+        await batchInsertAnimeRelationships(relationships);
+      }
+
+      console.log(`✅ Successfully added anime with relationships: ${newEntry.animeInfo.title} (MAL ID: ${malId})`);
+
       // Return in legacy format for backward compatibility
       return {
         id: newEntry.id,
@@ -122,7 +136,7 @@ export class AnimeService {
       // For now, we'll return the transformed data
       // TODO: Implement anime info update function in queries.ts
       console.log(`Refreshed data for anime: ${animeData.title} (MAL ID: ${malId})`);
-      
+
       return {
         id: existingEntry.id,
         malId: existingEntry.animeInfo.malId,
@@ -202,7 +216,7 @@ export class AnimeService {
     } catch (error) {
       const handledError = handleMyAnimeListError(error);
       logError(handledError, 'AnimeService.validateAnimeUrl');
-      
+
       return {
         isValid: false,
         error: handledError.message,
@@ -219,7 +233,7 @@ export class AnimeService {
     error?: string;
   }> {
     const isConfigured = this.malService.isConfigured();
-    
+
     if (!isConfigured) {
       return {
         isConfigured: false,
@@ -240,6 +254,89 @@ export class AnimeService {
         isWorking: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       };
+    }
+  }
+
+  /**
+   * Process related anime to build comprehensive timeline data
+   * Fetches and stores anime info for all related anime
+   */
+  private async processRelatedAnime(relationships: any[]): Promise<void> {
+    if (relationships.length === 0) {
+      return;
+    }
+
+    try {
+      // Extract unique MAL IDs from relationships
+      const relatedMalIds = new Set<number>();
+      for (const rel of relationships) {
+        relatedMalIds.add(rel.targetMalId);
+      }
+
+      console.log(`🔍 Processing ${relatedMalIds.size} related anime`);
+
+      // Check which anime we already have in the database
+      const { getAnimeInfoByMalIds } = await import('../../db/queries.js');
+      const existingAnime = await getAnimeInfoByMalIds(Array.from(relatedMalIds));
+      const existingMalIds = new Set(existingAnime.map(anime => anime.malId));
+
+      // Filter to only anime we don't have yet
+      const missingMalIds = Array.from(relatedMalIds).filter(malId => !existingMalIds.has(malId));
+
+      if (missingMalIds.length === 0) {
+        console.log(`✅ All related anime already exist in database`);
+        return;
+      }
+
+      console.log(`📥 Fetching data for ${missingMalIds.length} missing related anime`);
+
+      // Batch fetch comprehensive data for missing anime
+      const batchResult = await this.malService.batchGetComprehensiveAnimeInfo(missingMalIds);
+
+      if (batchResult.success.length > 0) {
+        console.log(`💾 Storing ${batchResult.success.length} related anime`);
+
+        // Store anime info and relationships for each successfully fetched anime
+        const { upsertAnimeInfo, batchInsertAnimeRelationships } = await import('../../db/queries.js');
+
+        // First pass: Store all anime info
+        for (const result of batchResult.success) {
+          await upsertAnimeInfo({
+            malId: result.animeInfo.malId,
+            title: result.animeInfo.title,
+            titleEnglish: result.animeInfo.titleEnglish,
+            titleJapanese: result.animeInfo.titleJapanese,
+            imageUrl: result.animeInfo.imageUrl,
+            rating: result.animeInfo.rating,
+            premiereDate: result.animeInfo.premiereDate?.toISOString() || null,
+            numEpisodes: result.animeInfo.numEpisodes,
+            episodeDuration: result.animeInfo.episodeDuration,
+            animeType: result.animeInfo.animeType,
+            status: result.animeInfo.status,
+            source: result.animeInfo.source,
+            studios: result.animeInfo.studios.length > 0 ? JSON.stringify(result.animeInfo.studios) : null,
+            genres: result.animeInfo.genres.length > 0 ? JSON.stringify(result.animeInfo.genres) : null,
+          });
+        }
+
+        // Second pass: Store all relationships after all anime info is in database
+        for (const result of batchResult.success) {
+          if (result.relationships.length > 0) {
+            await batchInsertAnimeRelationships(result.relationships);
+          }
+        }
+      }
+
+      if (batchResult.errors.length > 0) {
+        console.warn(`⚠️ Failed to fetch ${batchResult.errors.length} related anime:`,
+          batchResult.errors.map(e => `MAL ID ${e.malId}: ${e.error.message}`));
+      }
+
+      console.log(`✅ Completed processing related anime: ${batchResult.success.length} successful, ${batchResult.errors.length} failed`);
+
+    } catch (error) {
+      console.error('❌ Error processing related anime:', error);
+      // Don't throw - this is a background process that shouldn't fail the main operation
     }
   }
 

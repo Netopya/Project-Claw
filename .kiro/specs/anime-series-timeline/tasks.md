@@ -58,7 +58,13 @@
   - Create data transformation utilities for new anime_info table structure
   - _Requirements: 1.1, 1.2, 5.3, 5.4, 6.3_
 
-- [ ] 5. Update database queries and data access layer
+- [x] 5. Update database queries and data access layer
+
+
+
+
+
+
   - Refactor existing database queries to work with new schema structure
   - Implement new query functions for anime_info, user_watchlist, and relationships tables
   - Add timeline cache query operations with proper indexing

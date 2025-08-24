@@ -1,20 +1,51 @@
 import { Hono } from 'hono';
-import { getAllAnime, getAnimeByMalId, addAnime, updateAnimePriorities, deleteAnime } from '../../db/queries.js';
+import { 
+  getAllWatchlistEntries, 
+  getWatchlistEntryByMalId, 
+  getWatchlistEntryById,
+  addAnimeToWatchlist, 
+  updateWatchlistPriorities, 
+  removeFromWatchlist,
+  removeFromWatchlistByMalId
+} from '../../db/queries.js';
 import { AnimeService } from '../services/anime-service.js';
 import { createErrorResponse, logError } from '../utils/error-handler.js';
-import { sanitizeCreateAnimeData, sanitizeUpdateAnimeData } from '../utils/data-sanitizer.js';
-import { validateCreateAnimeData, validateUpdateAnimeData } from '../../types/validation.js';
 
 const anime = new Hono();
 
-// GET /api/anime - Get all anime ordered by priority
+// GET /api/anime - Get all anime in watchlist ordered by priority
 anime.get('/', async (c) => {
   try {
-    console.log('📚 Fetching all anime from database...');
+    console.log('📚 Fetching all watchlist entries from database...');
     
-    const animeList = await getAllAnime();
+    const watchlistEntries = await getAllWatchlistEntries();
     
-    console.log(`✅ Retrieved ${animeList.length} anime from database`);
+    // Transform to legacy format for backward compatibility
+    const animeList = watchlistEntries.map(entry => ({
+      id: entry.id,
+      malId: entry.animeInfo.malId,
+      title: entry.animeInfo.title,
+      titleEnglish: entry.animeInfo.titleEnglish,
+      titleJapanese: entry.animeInfo.titleJapanese,
+      imageUrl: entry.animeInfo.imageUrl,
+      rating: entry.animeInfo.rating,
+      premiereDate: entry.animeInfo.premiereDate ? new Date(entry.animeInfo.premiereDate) : null,
+      numEpisodes: entry.animeInfo.numEpisodes,
+      episodeDuration: entry.animeInfo.episodeDuration,
+      animeType: entry.animeInfo.animeType,
+      status: entry.animeInfo.status,
+      source: entry.animeInfo.source,
+      studios: entry.animeInfo.studios ? JSON.parse(entry.animeInfo.studios) : null,
+      genres: entry.animeInfo.genres ? JSON.parse(entry.animeInfo.genres) : null,
+      priority: entry.priority,
+      watchStatus: entry.watchStatus,
+      userRating: entry.userRating,
+      notes: entry.notes,
+      createdAt: new Date(entry.createdAt),
+      updatedAt: new Date(entry.updatedAt),
+    }));
+    
+    console.log(`✅ Retrieved ${animeList.length} watchlist entries from database`);
     
     return c.json({
       success: true,
@@ -35,7 +66,7 @@ anime.get('/', async (c) => {
   }
 });
 
-// GET /api/anime/:id - Get specific anime by ID
+// GET /api/anime/:id - Get specific watchlist entry by ID
 anime.get('/:id', async (c) => {
   try {
     const id = parseInt(c.req.param('id'), 10);
@@ -44,32 +75,54 @@ anime.get('/:id', async (c) => {
       return c.json({
         success: false,
         error: 'ValidationError',
-        message: 'Invalid anime ID',
+        message: 'Invalid watchlist entry ID',
         timestamp: new Date().toISOString(),
       }, 400);
     }
     
-    console.log(`🔍 Fetching anime with ID: ${id}`);
+    console.log(`🔍 Fetching watchlist entry with ID: ${id}`);
     
-    // For now, we'll search by database ID
-    // In the future, we might want to add a separate endpoint for MAL ID
-    const animeList = await getAllAnime();
-    const foundAnime = animeList.find(anime => anime.id === id);
+    const watchlistEntry = await getWatchlistEntryById(id);
     
-    if (!foundAnime) {
+    if (!watchlistEntry) {
       return c.json({
         success: false,
         error: 'NotFound',
-        message: 'Anime not found',
+        message: 'Anime not found in watchlist',
         timestamp: new Date().toISOString(),
       }, 404);
     }
     
-    console.log(`✅ Found anime: ${foundAnime.title}`);
+    // Transform to legacy format for backward compatibility
+    const animeData = {
+      id: watchlistEntry.id,
+      malId: watchlistEntry.animeInfo.malId,
+      title: watchlistEntry.animeInfo.title,
+      titleEnglish: watchlistEntry.animeInfo.titleEnglish,
+      titleJapanese: watchlistEntry.animeInfo.titleJapanese,
+      imageUrl: watchlistEntry.animeInfo.imageUrl,
+      rating: watchlistEntry.animeInfo.rating,
+      premiereDate: watchlistEntry.animeInfo.premiereDate ? new Date(watchlistEntry.animeInfo.premiereDate) : null,
+      numEpisodes: watchlistEntry.animeInfo.numEpisodes,
+      episodeDuration: watchlistEntry.animeInfo.episodeDuration,
+      animeType: watchlistEntry.animeInfo.animeType,
+      status: watchlistEntry.animeInfo.status,
+      source: watchlistEntry.animeInfo.source,
+      studios: watchlistEntry.animeInfo.studios ? JSON.parse(watchlistEntry.animeInfo.studios) : null,
+      genres: watchlistEntry.animeInfo.genres ? JSON.parse(watchlistEntry.animeInfo.genres) : null,
+      priority: watchlistEntry.priority,
+      watchStatus: watchlistEntry.watchStatus,
+      userRating: watchlistEntry.userRating,
+      notes: watchlistEntry.notes,
+      createdAt: new Date(watchlistEntry.createdAt),
+      updatedAt: new Date(watchlistEntry.updatedAt),
+    };
+    
+    console.log(`✅ Found anime: ${animeData.title}`);
     
     return c.json({
       success: true,
-      data: foundAnime,
+      data: animeData,
       timestamp: new Date().toISOString(),
     });
     
@@ -85,7 +138,7 @@ anime.get('/:id', async (c) => {
   }
 });
 
-// GET /api/anime/mal/:malId - Get anime by MyAnimeList ID
+// GET /api/anime/mal/:malId - Get watchlist entry by MyAnimeList ID
 anime.get('/mal/:malId', async (c) => {
   try {
     const malId = parseInt(c.req.param('malId'), 10);
@@ -99,11 +152,11 @@ anime.get('/mal/:malId', async (c) => {
       }, 400);
     }
     
-    console.log(`🔍 Fetching anime with MAL ID: ${malId}`);
+    console.log(`🔍 Fetching watchlist entry with MAL ID: ${malId}`);
     
-    const foundAnime = await getAnimeByMalId(malId);
+    const watchlistEntry = await getWatchlistEntryByMalId(malId);
     
-    if (!foundAnime) {
+    if (!watchlistEntry) {
       return c.json({
         success: false,
         error: 'NotFound',
@@ -112,11 +165,36 @@ anime.get('/mal/:malId', async (c) => {
       }, 404);
     }
     
-    console.log(`✅ Found anime: ${foundAnime.title}`);
+    // Transform to legacy format for backward compatibility
+    const animeData = {
+      id: watchlistEntry.id,
+      malId: watchlistEntry.animeInfo.malId,
+      title: watchlistEntry.animeInfo.title,
+      titleEnglish: watchlistEntry.animeInfo.titleEnglish,
+      titleJapanese: watchlistEntry.animeInfo.titleJapanese,
+      imageUrl: watchlistEntry.animeInfo.imageUrl,
+      rating: watchlistEntry.animeInfo.rating,
+      premiereDate: watchlistEntry.animeInfo.premiereDate ? new Date(watchlistEntry.animeInfo.premiereDate) : null,
+      numEpisodes: watchlistEntry.animeInfo.numEpisodes,
+      episodeDuration: watchlistEntry.animeInfo.episodeDuration,
+      animeType: watchlistEntry.animeInfo.animeType,
+      status: watchlistEntry.animeInfo.status,
+      source: watchlistEntry.animeInfo.source,
+      studios: watchlistEntry.animeInfo.studios ? JSON.parse(watchlistEntry.animeInfo.studios) : null,
+      genres: watchlistEntry.animeInfo.genres ? JSON.parse(watchlistEntry.animeInfo.genres) : null,
+      priority: watchlistEntry.priority,
+      watchStatus: watchlistEntry.watchStatus,
+      userRating: watchlistEntry.userRating,
+      notes: watchlistEntry.notes,
+      createdAt: new Date(watchlistEntry.createdAt),
+      updatedAt: new Date(watchlistEntry.updatedAt),
+    };
+    
+    console.log(`✅ Found anime: ${animeData.title}`);
     
     return c.json({
       success: true,
-      data: foundAnime,
+      data: animeData,
       timestamp: new Date().toISOString(),
     });
     
@@ -326,36 +404,61 @@ anime.put('/reorder', async (c) => {
       }, 400);
     }
     
-    // Verify all anime exist in database
-    const existingAnime = await getAllAnime();
-    const existingIds = new Set(existingAnime.map(anime => anime.id));
+    // Verify all watchlist entries exist in database
+    const existingEntries = await getAllWatchlistEntries();
+    const existingIds = new Set(existingEntries.map(entry => entry.id));
     
     for (const id of animeIds) {
       if (!existingIds.has(id)) {
         return c.json({
           success: false,
           error: 'ValidationError',
-          message: `Anime with ID ${id} not found in watchlist`,
+          message: `Watchlist entry with ID ${id} not found`,
           timestamp: new Date().toISOString(),
         }, 400);
       }
     }
     
-    // Check that we have all anime (no missing IDs)
-    if (animeIds.length !== existingAnime.length) {
+    // Check that we have all entries (no missing IDs)
+    if (animeIds.length !== existingEntries.length) {
       return c.json({
         success: false,
         error: 'ValidationError',
-        message: `Expected ${existingAnime.length} anime IDs, but received ${animeIds.length}`,
+        message: `Expected ${existingEntries.length} watchlist entry IDs, but received ${animeIds.length}`,
         timestamp: new Date().toISOString(),
       }, 400);
     }
     
     // Update priorities
-    await updateAnimePriorities(animeIds);
+    await updateWatchlistPriorities(animeIds);
     
-    // Fetch updated anime list to return
-    const updatedAnime = await getAllAnime();
+    // Fetch updated watchlist to return
+    const updatedEntries = await getAllWatchlistEntries();
+    
+    // Transform to legacy format for backward compatibility
+    const updatedAnime = updatedEntries.map(entry => ({
+      id: entry.id,
+      malId: entry.animeInfo.malId,
+      title: entry.animeInfo.title,
+      titleEnglish: entry.animeInfo.titleEnglish,
+      titleJapanese: entry.animeInfo.titleJapanese,
+      imageUrl: entry.animeInfo.imageUrl,
+      rating: entry.animeInfo.rating,
+      premiereDate: entry.animeInfo.premiereDate ? new Date(entry.animeInfo.premiereDate) : null,
+      numEpisodes: entry.animeInfo.numEpisodes,
+      episodeDuration: entry.animeInfo.episodeDuration,
+      animeType: entry.animeInfo.animeType,
+      status: entry.animeInfo.status,
+      source: entry.animeInfo.source,
+      studios: entry.animeInfo.studios ? JSON.parse(entry.animeInfo.studios) : null,
+      genres: entry.animeInfo.genres ? JSON.parse(entry.animeInfo.genres) : null,
+      priority: entry.priority,
+      watchStatus: entry.watchStatus,
+      userRating: entry.userRating,
+      notes: entry.notes,
+      createdAt: new Date(entry.createdAt),
+      updatedAt: new Date(entry.updatedAt),
+    }));
     
     console.log(`✅ Successfully reordered ${animeIds.length} anime`);
     
@@ -394,11 +497,10 @@ anime.delete('/:id', async (c) => {
     
     console.log(`🗑️ Received request to delete anime with ID: ${id}`);
     
-    // Check if anime exists before deletion
-    const existingAnime = await getAllAnime();
-    const animeToDelete = existingAnime.find(anime => anime.id === id);
+    // Check if watchlist entry exists before deletion
+    const entryToDelete = await getWatchlistEntryById(id);
     
-    if (!animeToDelete) {
+    if (!entryToDelete) {
       return c.json({
         success: false,
         error: 'NotFound',
@@ -407,23 +509,73 @@ anime.delete('/:id', async (c) => {
       }, 404);
     }
     
-    console.log(`🔍 Found anime to delete: ${animeToDelete.title}`);
+    console.log(`🔍 Found anime to delete: ${entryToDelete.animeInfo.title}`);
     
-    // Delete anime (this will also adjust priorities of remaining items)
-    await deleteAnime(id);
+    // Transform to legacy format for response
+    const animeToDelete = {
+      id: entryToDelete.id,
+      malId: entryToDelete.animeInfo.malId,
+      title: entryToDelete.animeInfo.title,
+      titleEnglish: entryToDelete.animeInfo.titleEnglish,
+      titleJapanese: entryToDelete.animeInfo.titleJapanese,
+      imageUrl: entryToDelete.animeInfo.imageUrl,
+      rating: entryToDelete.animeInfo.rating,
+      premiereDate: entryToDelete.animeInfo.premiereDate ? new Date(entryToDelete.animeInfo.premiereDate) : null,
+      numEpisodes: entryToDelete.animeInfo.numEpisodes,
+      episodeDuration: entryToDelete.animeInfo.episodeDuration,
+      animeType: entryToDelete.animeInfo.animeType,
+      status: entryToDelete.animeInfo.status,
+      source: entryToDelete.animeInfo.source,
+      studios: entryToDelete.animeInfo.studios ? JSON.parse(entryToDelete.animeInfo.studios) : null,
+      genres: entryToDelete.animeInfo.genres ? JSON.parse(entryToDelete.animeInfo.genres) : null,
+      priority: entryToDelete.priority,
+      watchStatus: entryToDelete.watchStatus,
+      userRating: entryToDelete.userRating,
+      notes: entryToDelete.notes,
+      createdAt: new Date(entryToDelete.createdAt),
+      updatedAt: new Date(entryToDelete.updatedAt),
+    };
     
-    // Fetch updated anime list
-    const updatedAnime = await getAllAnime();
+    // Remove from watchlist (this will also adjust priorities of remaining items)
+    await removeFromWatchlist(id);
+    
+    // Fetch updated watchlist
+    const updatedEntries = await getAllWatchlistEntries();
+    
+    // Transform to legacy format
+    const remainingAnime = updatedEntries.map(entry => ({
+      id: entry.id,
+      malId: entry.animeInfo.malId,
+      title: entry.animeInfo.title,
+      titleEnglish: entry.animeInfo.titleEnglish,
+      titleJapanese: entry.animeInfo.titleJapanese,
+      imageUrl: entry.animeInfo.imageUrl,
+      rating: entry.animeInfo.rating,
+      premiereDate: entry.animeInfo.premiereDate ? new Date(entry.animeInfo.premiereDate) : null,
+      numEpisodes: entry.animeInfo.numEpisodes,
+      episodeDuration: entry.animeInfo.episodeDuration,
+      animeType: entry.animeInfo.animeType,
+      status: entry.animeInfo.status,
+      source: entry.animeInfo.source,
+      studios: entry.animeInfo.studios ? JSON.parse(entry.animeInfo.studios) : null,
+      genres: entry.animeInfo.genres ? JSON.parse(entry.animeInfo.genres) : null,
+      priority: entry.priority,
+      watchStatus: entry.watchStatus,
+      userRating: entry.userRating,
+      notes: entry.notes,
+      createdAt: new Date(entry.createdAt),
+      updatedAt: new Date(entry.updatedAt),
+    }));
     
     console.log(`✅ Successfully deleted anime: ${animeToDelete.title} (ID: ${id})`);
-    console.log(`📊 Remaining anime count: ${updatedAnime.length}`);
+    console.log(`📊 Remaining anime count: ${remainingAnime.length}`);
     
     return c.json({
       success: true,
       data: {
         deletedAnime: animeToDelete,
-        remainingAnime: updatedAnime,
-        remainingCount: updatedAnime.length,
+        remainingAnime: remainingAnime,
+        remainingCount: remainingAnime.length,
       },
       message: `Successfully removed "${animeToDelete.title}" from watchlist`,
       timestamp: new Date().toISOString(),
@@ -457,10 +609,10 @@ anime.delete('/mal/:malId', async (c) => {
     
     console.log(`🗑️ Received request to delete anime with MAL ID: ${malId}`);
     
-    // Find anime by MAL ID
-    const animeToDelete = await getAnimeByMalId(malId);
+    // Find watchlist entry by MAL ID
+    const entryToDelete = await getWatchlistEntryByMalId(malId);
     
-    if (!animeToDelete) {
+    if (!entryToDelete) {
       return c.json({
         success: false,
         error: 'NotFound',
@@ -469,23 +621,73 @@ anime.delete('/mal/:malId', async (c) => {
       }, 404);
     }
     
-    console.log(`🔍 Found anime to delete: ${animeToDelete.title} (DB ID: ${animeToDelete.id})`);
+    console.log(`🔍 Found anime to delete: ${entryToDelete.animeInfo.title} (DB ID: ${entryToDelete.id})`);
     
-    // Delete anime using database ID
-    await deleteAnime(animeToDelete.id);
+    // Transform to legacy format for response
+    const animeToDelete = {
+      id: entryToDelete.id,
+      malId: entryToDelete.animeInfo.malId,
+      title: entryToDelete.animeInfo.title,
+      titleEnglish: entryToDelete.animeInfo.titleEnglish,
+      titleJapanese: entryToDelete.animeInfo.titleJapanese,
+      imageUrl: entryToDelete.animeInfo.imageUrl,
+      rating: entryToDelete.animeInfo.rating,
+      premiereDate: entryToDelete.animeInfo.premiereDate ? new Date(entryToDelete.animeInfo.premiereDate) : null,
+      numEpisodes: entryToDelete.animeInfo.numEpisodes,
+      episodeDuration: entryToDelete.animeInfo.episodeDuration,
+      animeType: entryToDelete.animeInfo.animeType,
+      status: entryToDelete.animeInfo.status,
+      source: entryToDelete.animeInfo.source,
+      studios: entryToDelete.animeInfo.studios ? JSON.parse(entryToDelete.animeInfo.studios) : null,
+      genres: entryToDelete.animeInfo.genres ? JSON.parse(entryToDelete.animeInfo.genres) : null,
+      priority: entryToDelete.priority,
+      watchStatus: entryToDelete.watchStatus,
+      userRating: entryToDelete.userRating,
+      notes: entryToDelete.notes,
+      createdAt: new Date(entryToDelete.createdAt),
+      updatedAt: new Date(entryToDelete.updatedAt),
+    };
     
-    // Fetch updated anime list
-    const updatedAnime = await getAllAnime();
+    // Remove from watchlist by MAL ID
+    await removeFromWatchlistByMalId(malId);
+    
+    // Fetch updated watchlist
+    const updatedEntries = await getAllWatchlistEntries();
+    
+    // Transform to legacy format
+    const remainingAnime = updatedEntries.map(entry => ({
+      id: entry.id,
+      malId: entry.animeInfo.malId,
+      title: entry.animeInfo.title,
+      titleEnglish: entry.animeInfo.titleEnglish,
+      titleJapanese: entry.animeInfo.titleJapanese,
+      imageUrl: entry.animeInfo.imageUrl,
+      rating: entry.animeInfo.rating,
+      premiereDate: entry.animeInfo.premiereDate ? new Date(entry.animeInfo.premiereDate) : null,
+      numEpisodes: entry.animeInfo.numEpisodes,
+      episodeDuration: entry.animeInfo.episodeDuration,
+      animeType: entry.animeInfo.animeType,
+      status: entry.animeInfo.status,
+      source: entry.animeInfo.source,
+      studios: entry.animeInfo.studios ? JSON.parse(entry.animeInfo.studios) : null,
+      genres: entry.animeInfo.genres ? JSON.parse(entry.animeInfo.genres) : null,
+      priority: entry.priority,
+      watchStatus: entry.watchStatus,
+      userRating: entry.userRating,
+      notes: entry.notes,
+      createdAt: new Date(entry.createdAt),
+      updatedAt: new Date(entry.updatedAt),
+    }));
     
     console.log(`✅ Successfully deleted anime: ${animeToDelete.title} (MAL ID: ${malId})`);
-    console.log(`📊 Remaining anime count: ${updatedAnime.length}`);
+    console.log(`📊 Remaining anime count: ${remainingAnime.length}`);
     
     return c.json({
       success: true,
       data: {
         deletedAnime: animeToDelete,
-        remainingAnime: updatedAnime,
-        remainingCount: updatedAnime.length,
+        remainingAnime: remainingAnime,
+        remainingCount: remainingAnime.length,
       },
       message: `Successfully removed "${animeToDelete.title}" from watchlist`,
       timestamp: new Date().toISOString(),

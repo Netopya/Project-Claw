@@ -7,8 +7,7 @@ import {
   logError, 
   retryWithBackoff 
 } from '../utils/error-handler.js';
-import { getAnimeByMalId, addAnime } from '../../db/queries.js';
-import type { Anime } from '../../types/anime.js';
+import { getWatchlistEntryByMalId, addAnimeToWatchlist } from '../../db/queries.js';
 
 /**
  * Main anime service that orchestrates MyAnimeList API integration
@@ -24,7 +23,7 @@ export class AnimeService {
   /**
    * Add anime from MyAnimeList URL
    */
-  async addAnimeFromUrl(url: string): Promise<Anime> {
+  async addAnimeFromUrl(url: string) {
     try {
       // Parse and validate URL
       const parsedUrl = parseMyAnimeListUrl(url);
@@ -34,9 +33,9 @@ export class AnimeService {
 
       const malId = parsedUrl.malId;
 
-      // Check if anime already exists
-      const existingAnime = await getAnimeByMalId(malId);
-      if (existingAnime) {
+      // Check if anime already exists in watchlist
+      const existingEntry = await getWatchlistEntryByMalId(malId);
+      if (existingEntry) {
         throw new ValidationError('This anime is already in your watchlist');
       }
 
@@ -47,14 +46,54 @@ export class AnimeService {
         'AnimeService.addAnimeFromUrl'
       );
 
-      // Transform data to our format
-      const transformedData = transformMyAnimeListData(animeData, seriesInfo);
+      // Transform data to our new format
+      const watchlistData = {
+        malId: animeData.id,
+        title: animeData.title,
+        titleEnglish: animeData.alternative_titles?.en || null,
+        titleJapanese: animeData.alternative_titles?.ja || null,
+        imageUrl: animeData.main_picture?.large || animeData.main_picture?.medium || null,
+        rating: animeData.mean || null,
+        premiereDate: animeData.start_date ? new Date(animeData.start_date) : null,
+        numEpisodes: animeData.num_episodes || null,
+        episodeDuration: animeData.average_episode_duration ? Math.round(animeData.average_episode_duration / 60) : null,
+        animeType: animeData.media_type || 'unknown',
+        status: animeData.status || null,
+        source: animeData.source || null,
+        studios: animeData.studios?.map(studio => studio.name) || [],
+        genres: animeData.genres?.map(genre => genre.name) || [],
+        watchStatus: 'plan_to_watch',
+      };
 
-      // Add to database
-      const newAnime = await addAnime(transformedData);
+      // Add to watchlist
+      const newEntry = await addAnimeToWatchlist(watchlistData);
 
-      console.log(`Successfully added anime: ${newAnime.title} (MAL ID: ${malId})`);
-      return newAnime;
+      console.log(`Successfully added anime to watchlist: ${newEntry.animeInfo.title} (MAL ID: ${malId})`);
+      
+      // Return in legacy format for backward compatibility
+      return {
+        id: newEntry.id,
+        malId: newEntry.animeInfo.malId,
+        title: newEntry.animeInfo.title,
+        titleEnglish: newEntry.animeInfo.titleEnglish,
+        titleJapanese: newEntry.animeInfo.titleJapanese,
+        imageUrl: newEntry.animeInfo.imageUrl,
+        rating: newEntry.animeInfo.rating,
+        premiereDate: newEntry.animeInfo.premiereDate ? new Date(newEntry.animeInfo.premiereDate) : null,
+        numEpisodes: newEntry.animeInfo.numEpisodes,
+        episodeDuration: newEntry.animeInfo.episodeDuration,
+        animeType: newEntry.animeInfo.animeType,
+        status: newEntry.animeInfo.status,
+        source: newEntry.animeInfo.source,
+        studios: newEntry.animeInfo.studios ? JSON.parse(newEntry.animeInfo.studios) : null,
+        genres: newEntry.animeInfo.genres ? JSON.parse(newEntry.animeInfo.genres) : null,
+        priority: newEntry.priority,
+        watchStatus: newEntry.watchStatus,
+        userRating: newEntry.userRating,
+        notes: newEntry.notes,
+        createdAt: new Date(newEntry.createdAt),
+        updatedAt: new Date(newEntry.updatedAt),
+      };
 
     } catch (error) {
       const handledError = handleMyAnimeListError(error);
@@ -66,10 +105,10 @@ export class AnimeService {
   /**
    * Refresh anime data from MyAnimeList
    */
-  async refreshAnimeData(malId: number): Promise<Anime | null> {
+  async refreshAnimeData(malId: number) {
     try {
-      const existingAnime = await getAnimeByMalId(malId);
-      if (!existingAnime) {
+      const existingEntry = await getWatchlistEntryByMalId(malId);
+      if (!existingEntry) {
         throw new ValidationError('Anime not found in watchlist');
       }
 
@@ -80,16 +119,31 @@ export class AnimeService {
         'AnimeService.refreshAnimeData'
       );
 
-      // Transform data
-      const transformedData = transformMyAnimeListData(animeData, seriesInfo);
-
-      // Update in database (this would require an update function in queries.ts)
       // For now, we'll return the transformed data
-      console.log(`Refreshed data for anime: ${transformedData.title} (MAL ID: ${malId})`);
+      // TODO: Implement anime info update function in queries.ts
+      console.log(`Refreshed data for anime: ${animeData.title} (MAL ID: ${malId})`);
       
       return {
-        ...existingAnime,
-        ...transformedData,
+        id: existingEntry.id,
+        malId: existingEntry.animeInfo.malId,
+        title: animeData.title,
+        titleEnglish: animeData.alternative_titles?.en || existingEntry.animeInfo.titleEnglish,
+        titleJapanese: animeData.alternative_titles?.ja || existingEntry.animeInfo.titleJapanese,
+        imageUrl: animeData.main_picture?.large || animeData.main_picture?.medium || existingEntry.animeInfo.imageUrl,
+        rating: animeData.mean || existingEntry.animeInfo.rating,
+        premiereDate: animeData.start_date ? new Date(animeData.start_date) : (existingEntry.animeInfo.premiereDate ? new Date(existingEntry.animeInfo.premiereDate) : null),
+        numEpisodes: animeData.num_episodes || existingEntry.animeInfo.numEpisodes,
+        episodeDuration: animeData.average_episode_duration ? Math.round(animeData.average_episode_duration / 60) : existingEntry.animeInfo.episodeDuration,
+        animeType: animeData.media_type || existingEntry.animeInfo.animeType,
+        status: animeData.status || existingEntry.animeInfo.status,
+        source: animeData.source || existingEntry.animeInfo.source,
+        studios: animeData.studios?.map(studio => studio.name) || (existingEntry.animeInfo.studios ? JSON.parse(existingEntry.animeInfo.studios) : null),
+        genres: animeData.genres?.map(genre => genre.name) || (existingEntry.animeInfo.genres ? JSON.parse(existingEntry.animeInfo.genres) : null),
+        priority: existingEntry.priority,
+        watchStatus: existingEntry.watchStatus,
+        userRating: existingEntry.userRating,
+        notes: existingEntry.notes,
+        createdAt: new Date(existingEntry.createdAt),
         updatedAt: new Date(),
       };
 
@@ -121,13 +175,13 @@ export class AnimeService {
 
       const malId = parsedUrl.malId;
 
-      // Check if already exists
-      const existingAnime = await getAnimeByMalId(malId);
-      if (existingAnime) {
+      // Check if already exists in watchlist
+      const existingEntry = await getWatchlistEntryByMalId(malId);
+      if (existingEntry) {
         return {
           isValid: false,
           malId,
-          title: existingAnime.title,
+          title: existingEntry.animeInfo.title,
           error: 'This anime is already in your watchlist',
         };
       }

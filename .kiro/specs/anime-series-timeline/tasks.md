@@ -72,15 +72,25 @@
   - Write integration tests for all new database operations
   - _Requirements: 3.1, 3.2, 3.3, 5.1, 5.2_
 
-- [ ] 6. Update API endpoints for new data structure
-- [ ] 6.1 Modify existing anime endpoints
+- [x] 6. Update API endpoints for new data structure
+
+
+
+
+
+- [x] 6.1 Modify existing anime endpoints
+
+
   - Update GET /api/anime endpoint to return data from new user_watchlist and anime_info tables
   - Modify POST /api/anime endpoint to store data in new schema structure
   - Update PUT /api/anime/reorder endpoint to work with user_watchlist table
   - Modify DELETE /api/anime/:id endpoint to only remove from user_watchlist, preserving anime_info
   - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
-- [ ] 6.2 Create new timeline-specific endpoints
+- [x] 6.2 Create new timeline-specific endpoints
+
+
+
   - Implement GET /api/anime/:id/timeline endpoint to retrieve complete series timeline
   - Add POST /api/timeline/refresh endpoint to manually refresh timeline cache
   - Create GET /api/timeline/status endpoint to check timeline processing status

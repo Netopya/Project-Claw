@@ -9,6 +9,7 @@ import {
   removeFromWatchlistByMalId
 } from '../../db/queries.js';
 import { AnimeService } from '../services/anime-service.js';
+import { TimelineService } from '../services/timeline-service.js';
 import { createErrorResponse, logError } from '../utils/error-handler.js';
 
 const anime = new Hono();
@@ -702,6 +703,81 @@ anime.delete('/mal/:malId', async (c) => {
       ...errorResponse,
       timestamp: new Date().toISOString(),
     }, 500);
+  }
+});
+
+// GET /api/anime/:id/timeline - Get complete series timeline for an anime
+anime.get('/:id/timeline', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'), 10);
+    
+    if (isNaN(id) || id <= 0) {
+      return c.json({
+        success: false,
+        error: 'ValidationError',
+        message: 'Invalid anime ID',
+        timestamp: new Date().toISOString(),
+      }, 400);
+    }
+    
+    console.log(`🔍 Fetching timeline for anime ID: ${id}`);
+    
+    // Get the watchlist entry to find the MAL ID
+    const watchlistEntry = await getWatchlistEntryById(id);
+    
+    if (!watchlistEntry) {
+      return c.json({
+        success: false,
+        error: 'NotFound',
+        message: 'Anime not found in watchlist',
+        timestamp: new Date().toISOString(),
+      }, 404);
+    }
+    
+    const malId = watchlistEntry.animeInfo.malId;
+    console.log(`🎯 Generating timeline for: ${watchlistEntry.animeInfo.title} (MAL ID: ${malId})`);
+    
+    // Generate timeline using TimelineService
+    const timelineService = new TimelineService();
+    const timeline = await timelineService.getAnimeTimeline(malId);
+    
+    console.log(`✅ Generated timeline with ${timeline.totalEntries} entries`);
+    
+    return c.json({
+      success: true,
+      data: {
+        timeline,
+        animeInfo: {
+          id: watchlistEntry.id,
+          malId: watchlistEntry.animeInfo.malId,
+          title: watchlistEntry.animeInfo.title,
+          titleEnglish: watchlistEntry.animeInfo.titleEnglish,
+          titleJapanese: watchlistEntry.animeInfo.titleJapanese,
+        }
+      },
+      message: `Timeline generated for "${watchlistEntry.animeInfo.title}"`,
+      timestamp: new Date().toISOString(),
+    });
+    
+  } catch (error) {
+    logError(error as Error, 'GET /api/anime/:id/timeline');
+    const errorResponse = createErrorResponse(error as Error);
+    
+    // Determine appropriate status code
+    let statusCode = 500;
+    if (errorResponse.code === 'VALIDATION_ERROR') {
+      statusCode = 400;
+    } else if (errorResponse.code === 'NOT_FOUND') {
+      statusCode = 404;
+    } else if (errorResponse.code === 'RATE_LIMIT_EXCEEDED') {
+      statusCode = 429;
+    }
+    
+    return c.json({
+      success: false,
+      ...errorResponse,
+      timestamp: new Date().toISOString(),
+    }, statusCode);
   }
 });
 

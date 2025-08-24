@@ -5,6 +5,7 @@ import { prettyJSON } from 'hono/pretty-json';
 import { initializeDatabase } from '../db/connection.js';
 import { animeRoutes } from './routes/anime.js';
 import { healthRoutes } from './routes/health.js';
+import { timelineRoutes } from './routes/timeline.js';
 
 // Create Hono app
 const app = new Hono();
@@ -21,6 +22,7 @@ app.use('*', cors({
 // Routes
 app.route('/api/health', healthRoutes);
 app.route('/api/anime', animeRoutes);
+app.route('/api/timeline', timelineRoutes);
 
 // Root endpoint
 app.get('/', (c) => {
@@ -31,6 +33,7 @@ app.get('/', (c) => {
     endpoints: {
       health: '/api/health',
       anime: '/api/anime',
+      timeline: '/api/timeline',
     },
   });
 });

@@ -98,21 +98,32 @@
   - _Requirements: 1.4, 1.5, 5.1, 5.2, 6.1_
 
 - [ ] 7. Create timeline badge UI components
-- [ ] 7.1 Implement TimelineBadge component
+
+
+
+
+
+- [x] 7.1 Implement TimelineBadge component
+
+
   - Create individual timeline badge component with anime type, year, and episode information display
   - Add hover state handling and current anime highlighting
   - Implement responsive design for different screen sizes
   - Style badges with appropriate colors and typography for different anime types
   - _Requirements: 2.1, 2.2, 2.4_
 
-- [ ] 7.2 Build TimelineBadges container component
+- [x] 7.2 Build TimelineBadges container component
+
+
   - Create scrollable container for multiple timeline badges
   - Implement horizontal scrolling with touch support for mobile devices
   - Add timeline connector arrows between badges
   - Handle overflow scenarios with truncation and expansion options
   - _Requirements: 2.1, 2.2, 2.5_
 
-- [ ] 7.3 Create TimelinePopover component
+- [x] 7.3 Create TimelinePopover component
+
+
   - Implement popover component with detailed anime information on hover
   - Add anime title, description, and additional metadata display
   - Position popover intelligently to avoid screen edge overflow

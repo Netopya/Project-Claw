@@ -72,14 +72,43 @@ export interface MyAnimeListResponse {
   };
   mean?: number;
   start_date?: string;
+  end_date?: string;
   num_episodes?: number;
+  average_episode_duration?: number; // Duration in seconds
+  media_type?: string; // tv, movie, ova, special, ona, music
+  status?: string; // finished_airing, currently_airing, not_yet_aired
+  source?: string; // manga, novel, original, etc.
+  studios?: Array<{
+    id: number;
+    name: string;
+  }>;
+  genres?: Array<{
+    id: number;
+    name: string;
+  }>;
   related_anime?: Array<{
     node: {
       id: number;
       title: string;
+      main_picture?: {
+        medium: string;
+        large: string;
+      };
     };
     relation_type: string;
+    relation_type_formatted: string;
   }>;
+}
+
+// Enhanced API response for comprehensive data
+export interface EnhancedMyAnimeListResponse extends MyAnimeListResponse {
+  // Additional fields for timeline functionality
+  broadcast?: {
+    day_of_the_week?: string;
+    start_time?: string;
+  };
+  rating?: string; // g, pg, pg_13, r, r+, rx
+  synopsis?: string;
 }
 
 // Error response type

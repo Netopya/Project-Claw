@@ -415,7 +415,7 @@ export function WatchlistApp({ initialAnime = [], apiError = null }: WatchlistAp
   return (
     <>
       <OfflineIndicator />
-      <div className="space-y-6">
+      <div className="space-y-6 mt-8">
 
       {/* Add Anime Form */}
       <AddAnimeForm onAnimeAdded={handleAnimeAdded} onError={handleError} />

@@ -37,11 +37,8 @@ describe('MyAnimeListService', () => {
     });
 
     it('should not be configured without credentials', () => {
-      // Clear environment variables for this test
-      delete process.env.MAL_CLIENT_ID;
-      delete process.env.MAL_CLIENT_SECRET;
-      
-      const unconfiguredService = new MyAnimeListService();
+      // Create service with empty credentials
+      const unconfiguredService = new MyAnimeListService('', '');
       expect(unconfiguredService.isConfigured()).toBe(false);
     });
   });
@@ -312,18 +309,16 @@ describe('MyAnimeListService', () => {
 
       expect(relationships).toHaveLength(2);
       expect(relationships[0]).toEqual({
-        id: 0,
         sourceMalId: 1,
         targetMalId: 2,
         relationshipType: 'sequel',
-        createdAt: expect.any(Date)
+        createdAt: expect.any(String)
       });
       expect(relationships[1]).toEqual({
-        id: 0,
         sourceMalId: 1,
         targetMalId: 3,
         relationshipType: 'prequel',
-        createdAt: expect.any(Date)
+        createdAt: expect.any(String)
       });
     });
 

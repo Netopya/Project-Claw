@@ -260,11 +260,22 @@ export class AnimeService {
   /**
    * Process related anime to build comprehensive timeline data
    * Fetches and stores anime info for all related anime
+   * @param relationships - Array of relationships to process
+   * @param depth - Current recursion depth (default: 0)
+   * @param maxDepth - Maximum recursion depth (default: 3)
    */
-  private async processRelatedAnime(relationships: any[]): Promise<void> {
+  private async processRelatedAnime(relationships: any[], depth: number = 0, maxDepth: number = 3): Promise<void> {
     if (relationships.length === 0) {
       return;
     }
+
+    // Check recursion depth limit
+    if (depth >= maxDepth) {
+      console.log(`🔄 Reached maximum recursion depth (${maxDepth}), stopping relationship processing`);
+      return;
+    }
+
+    console.log(`🔄 Processing relationships at depth ${depth}/${maxDepth}`);
 
     try {
       // Extract unique MAL IDs from relationships
@@ -292,6 +303,10 @@ export class AnimeService {
 
       // Batch fetch comprehensive data for missing anime
       const batchResult = await this.malService.batchGetComprehensiveAnimeInfo(missingMalIds);
+      
+      // Declare these variables at higher scope for recursive access
+      let missingRelationshipIds: number[] = [];
+      let missingAnimeBatch: any = { success: [], errors: [] };
 
       if (batchResult.success.length > 0) {
         console.log(`💾 Storing ${batchResult.success.length} related anime`);
@@ -319,9 +334,61 @@ export class AnimeService {
           });
         }
 
-        // Second pass: Store all relationships after all anime info is in database
+        // Second pass: Store all relationships after ensuring all referenced anime exist
+        // Collect all unique anime IDs mentioned in relationships
+        const allRelationshipIds = new Set<number>();
+        for (const result of batchResult.success) {
+          for (const rel of result.relationships) {
+            allRelationshipIds.add(rel.sourceMalId);
+            allRelationshipIds.add(rel.targetMalId);
+          }
+        }
+
+        // Check which anime already exist in database
+        const { getAllAnimeInfo } = await import('../../db/queries.js');
+        const existingAnime = await getAllAnimeInfo();
+        const existingAnimeIds = new Set(existingAnime.map(anime => anime.malId));
+
+        // Find anime IDs that are referenced in relationships but don't exist in database
+        missingRelationshipIds = Array.from(allRelationshipIds).filter(id => !existingAnimeIds.has(id));
+
+        if (missingRelationshipIds.length > 0) {
+          console.log(`🔍 Found ${missingRelationshipIds.length} missing anime referenced in relationships: ${missingRelationshipIds.join(', ')}`);
+          console.log(`📥 Fetching missing anime to complete relationship storage`);
+          
+          // Fetch the missing anime
+          missingAnimeBatch = await this.malService.batchGetComprehensiveAnimeInfo(missingRelationshipIds);
+          
+          if (missingAnimeBatch.success.length > 0) {
+            console.log(`💾 Storing ${missingAnimeBatch.success.length} additional anime for complete relationships`);
+            
+            // Store the missing anime
+            const { upsertAnimeInfo } = await import('../../db/queries.js');
+            for (const result of missingAnimeBatch.success) {
+              await upsertAnimeInfo({
+                malId: result.animeInfo.malId,
+                title: result.animeInfo.title,
+                titleEnglish: result.animeInfo.titleEnglish,
+                titleJapanese: result.animeInfo.titleJapanese,
+                imageUrl: result.animeInfo.imageUrl,
+                rating: result.animeInfo.rating,
+                premiereDate: result.animeInfo.premiereDate?.toISOString() || null,
+                numEpisodes: result.animeInfo.numEpisodes,
+                episodeDuration: result.animeInfo.episodeDuration,
+                animeType: result.animeInfo.animeType,
+                status: result.animeInfo.status,
+                source: result.animeInfo.source,
+                studios: result.animeInfo.studios.length > 0 ? JSON.stringify(result.animeInfo.studios) : null,
+                genres: result.animeInfo.genres.length > 0 ? JSON.stringify(result.animeInfo.genres) : null,
+              });
+            }
+          }
+        }
+
+        // Now store all relationships - they should all be valid since we fetched missing anime
         for (const result of batchResult.success) {
           if (result.relationships.length > 0) {
+            console.log(`💾 Storing ${result.relationships.length} relationships for ${result.animeInfo.title}`);
             await batchInsertAnimeRelationships(result.relationships);
           }
         }
@@ -333,6 +400,37 @@ export class AnimeService {
       }
 
       console.log(`✅ Completed processing related anime: ${batchResult.success.length} successful, ${batchResult.errors.length} failed`);
+
+      // Recursive step: Process relationships from newly fetched anime
+      if (depth < maxDepth && batchResult.success.length > 0) {
+        console.log(`🔍 Checking for deeper relationships from ${batchResult.success.length} newly fetched anime`);
+        
+        // Collect all relationships from newly fetched anime
+        const newRelationships: any[] = [];
+        for (const result of batchResult.success) {
+          if (result.relationships && result.relationships.length > 0) {
+            console.log(`📊 Found ${result.relationships.length} relationships from ${result.animeInfo.title}`);
+            newRelationships.push(...result.relationships);
+          }
+        }
+
+        // Also include relationships from anime that were fetched to complete relationship storage
+        if (missingRelationshipIds.length > 0 && missingAnimeBatch.success.length > 0) {
+          for (const result of missingAnimeBatch.success) {
+            if (result.relationships && result.relationships.length > 0) {
+              console.log(`📊 Found ${result.relationships.length} additional relationships from ${result.animeInfo.title} (fetched for completeness)`);
+              newRelationships.push(...result.relationships);
+            }
+          }
+        }
+
+        if (newRelationships.length > 0) {
+          console.log(`🔄 Recursively processing ${newRelationships.length} relationships at depth ${depth + 1}`);
+          await this.processRelatedAnime(newRelationships, depth + 1, maxDepth);
+        } else {
+          console.log(`✅ No additional relationships found at depth ${depth}`);
+        }
+      }
 
     } catch (error) {
       console.error('❌ Error processing related anime:', error);

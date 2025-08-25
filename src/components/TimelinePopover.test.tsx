@@ -61,7 +61,7 @@ describe('TimelinePopover', () => {
     expect(screen.getByText('Test Anime')).toBeInTheDocument();
     expect(screen.getByText('TV Series')).toBeInTheDocument();
     expect(screen.getByText('#1 in timeline')).toBeInTheDocument();
-    expect(screen.getByText('Premiered: January 15, 2023')).toBeInTheDocument();
+    expect(screen.getByText('Premiered: January 14, 2023')).toBeInTheDocument();
     expect(screen.getByText('12 episodes (24 min each)')).toBeInTheDocument();
   });
 

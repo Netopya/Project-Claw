@@ -111,23 +111,37 @@ export class GraphTraversalEngine {
         
         nodes.set(currentMalId, node);
         
-        // Add related anime to queue for traversal
+        // Add related anime to queue for traversal (bidirectional)
         for (const relationship of relationships) {
-          const targetId = relationship.targetMalId;
+          // Collect all connected anime IDs (both directions)
+          const connectedIds: number[] = [];
           
-          if (visited.has(targetId)) {
-            // Back edge detected - this indicates a cycle
-            // Find the cycle path by tracing back through visitedOrder
-            const targetIndex = visitedOrder.indexOf(targetId);
-            const currentIndex = visitedOrder.indexOf(currentMalId);
-            
-            if (targetIndex !== -1 && currentIndex !== -1) {
-              // Create cycle path: from target to current, then back to target
-              const cyclePath = visitedOrder.slice(targetIndex, currentIndex + 1).concat([targetId]);
-              cyclesDetected.push(cyclePath);
+          // If current anime is the source, add target
+          if (relationship.sourceMalId === currentMalId) {
+            connectedIds.push(relationship.targetMalId);
+          }
+          
+          // If current anime is the target, add source
+          if (relationship.targetMalId === currentMalId) {
+            connectedIds.push(relationship.sourceMalId);
+          }
+          
+          // Process each connected anime
+          for (const connectedId of connectedIds) {
+            if (visited.has(connectedId)) {
+              // Back edge detected - this indicates a cycle
+              // Find the cycle path by tracing back through visitedOrder
+              const targetIndex = visitedOrder.indexOf(connectedId);
+              const currentIndex = visitedOrder.indexOf(currentMalId);
+              
+              if (targetIndex !== -1 && currentIndex !== -1) {
+                // Create cycle path: from target to current, then back to target
+                const cyclePath = visitedOrder.slice(targetIndex, currentIndex + 1).concat([connectedId]);
+                cyclesDetected.push(cyclePath);
+              }
+            } else if (!queue.includes(connectedId)) {
+              queue.push(connectedId);
             }
-          } else if (!queue.includes(targetId)) {
-            queue.push(targetId);
           }
         }
         

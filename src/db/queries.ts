@@ -15,6 +15,25 @@ import type {
 // ===== ANIME INFO QUERIES =====
 
 /**
+ * Get all anime info
+ */
+export async function getAllAnimeInfo(): Promise<AnimeInfo[]> {
+  try {
+    const result = await db.select().from(animeInfo);
+    
+    return result.map(anime => ({
+      ...anime,
+      studios: anime.studios ? JSON.parse(anime.studios) : [],
+      genres: anime.genres ? JSON.parse(anime.genres) : [],
+      premiereDate: anime.premiereDate ? new Date(anime.premiereDate) : null,
+    }));
+  } catch (error) {
+    console.error('Error fetching all anime info:', error);
+    throw new Error('Failed to fetch anime info');
+  }
+}
+
+/**
  * Get anime info by MAL ID
  */
 export async function getAnimeInfoByMalId(malId: number): Promise<AnimeInfo | null> {
@@ -444,7 +463,8 @@ export async function upsertAnimeRelationship(relationshipData: NewAnimeRelation
     return inserted[0];
   } catch (error) {
     console.error('Error upserting anime relationship:', error);
-    throw new Error('Failed to save anime relationship');
+    // Preserve the original error so batch functions can handle specific error types
+    throw error;
   }
 }
 
@@ -464,8 +484,11 @@ export async function batchInsertAnimeRelationships(relationships: NewAnimeRelat
         await upsertAnimeRelationship(relationship);
         successCount++;
       } catch (error: any) {
-        if (error?.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
+        if (error?.code === 'SQLITE_CONSTRAINT_FOREIGNKEY' || error?.message?.includes('FOREIGN KEY constraint failed')) {
           console.warn(`⚠️ Skipping relationship ${relationship.sourceMalId}→${relationship.targetMalId}: Referenced anime not in database`);
+          skipCount++;
+        } else if (error?.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+          console.log(`📝 Relationship ${relationship.sourceMalId}→${relationship.targetMalId} already exists`);
           skipCount++;
         } else {
           console.warn('Failed to insert relationship:', relationship, error);

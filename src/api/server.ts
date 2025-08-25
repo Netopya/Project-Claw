@@ -6,6 +6,7 @@ import { initializeDatabase } from '../db/connection.js';
 import { animeRoutes } from './routes/anime.js';
 import { healthRoutes } from './routes/health.js';
 import { timelineRoutes } from './routes/timeline.js';
+import { config } from '../config/env.js';
 
 // Create Hono app
 const app = new Hono();
@@ -54,7 +55,7 @@ app.onError((err, c) => {
   return c.json({
     error: 'Internal Server Error',
     message: 'An unexpected error occurred',
-    ...(process.env.NODE_ENV === 'development' && { details: err.message }),
+    ...(config.isDevelopment && { details: err.message }),
   }, 500);
 });
 
@@ -68,7 +69,7 @@ async function startServer() {
     console.log('✅ Database initialized');
     
     // Start server
-    const port = parseInt(process.env.PORT || '3001', 10);
+    const port = config.port;
     
     console.log(`🌟 Server running on http://localhost:${port}`);
     console.log('📚 API Documentation available at http://localhost:' + port);

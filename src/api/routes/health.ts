@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { checkDatabaseConnection } from '../../db/connection.js';
 import { AnimeService } from '../services/anime-service.js';
+import { config } from '../../config/env.js';
 
 const health = new Hono();
 
@@ -53,7 +54,7 @@ health.get('/detailed', async (c) => {
     uptime: process.uptime(),
     version: '1.0.0',
     checks,
-    environment: process.env.NODE_ENV || 'development',
+    environment: config.nodeEnv,
   }, statusCode);
 });
 

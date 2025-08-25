@@ -14,6 +14,28 @@ import { createErrorResponse, logError } from '../utils/error-handler.js';
 
 const anime = new Hono();
 
+// GET /api/anime/all - Get all anime stored in database (not just watchlist)
+anime.get('/all', async (c) => {
+  try {
+    console.log('📊 Fetching all anime from anime_info table...');
+    
+    const { getAllAnimeInfo } = await import('../../db/queries.js');
+    const allAnime = await getAllAnimeInfo();
+    
+    console.log(`✅ Retrieved ${allAnime.length} total anime from database`);
+    
+    return c.json({
+      success: true,
+      data: allAnime,
+      count: allAnime.length,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('❌ Error fetching all anime:', error);
+    return createErrorResponse('Failed to fetch anime data', 500);
+  }
+});
+
 // GET /api/anime - Get all anime in watchlist ordered by priority
 anime.get('/', async (c) => {
   try {
@@ -738,7 +760,11 @@ anime.get('/:id/timeline', async (c) => {
     console.log(`🎯 Generating timeline for: ${watchlistEntry.animeInfo.title} (MAL ID: ${malId})`);
     
     // Generate timeline using TimelineService
-    const timelineService = new TimelineService();
+    // Use the shared database connection for timeline service
+    const { getSQLiteConnection } = await import('../../db/connection.js');
+    const sqliteConnection = getSQLiteConnection();
+    const { TimelineDatabase } = await import('../services/timeline-database.js');
+    const timelineService = new TimelineService(new TimelineDatabase(sqliteConnection));
     const timeline = await timelineService.getAnimeTimeline(malId);
     
     console.log(`✅ Generated timeline with ${timeline.totalEntries} entries`);

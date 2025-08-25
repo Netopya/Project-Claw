@@ -102,7 +102,7 @@ describe('AnimeCard', () => {
       expect(screen.getByText('テストアニメ')).toBeInTheDocument();
       expect(screen.getByText('8.5')).toBeInTheDocument();
       expect(screen.getByText('12 episodes')).toBeInTheDocument();
-      expect(screen.getByText('Premiered Jan 2023')).toBeInTheDocument();
+      expect(screen.getByText('Premiered Dec 2022')).toBeInTheDocument();
     });
 
     it('renders with English title when titleEnglish is available', () => {

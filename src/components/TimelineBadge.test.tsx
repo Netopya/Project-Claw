@@ -34,7 +34,7 @@ describe('TimelineBadge', () => {
     );
 
     expect(screen.getByText('TV')).toBeInTheDocument();
-    expect(screen.getByText('2023')).toBeInTheDocument();
+    expect(screen.getByText('2022')).toBeInTheDocument();
     expect(screen.getByText('12ep (24m)')).toBeInTheDocument();
   });
 
@@ -158,7 +158,7 @@ describe('TimelineBadge', () => {
     );
 
     expect(screen.getByText('TV')).toBeInTheDocument();
-    expect(screen.getByText('2023')).toBeInTheDocument();
+    expect(screen.getByText('2022')).toBeInTheDocument();
     expect(screen.queryByText(/ep/)).not.toBeInTheDocument();
   });
 

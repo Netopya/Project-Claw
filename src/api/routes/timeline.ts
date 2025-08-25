@@ -61,7 +61,11 @@ timeline.post('/refresh', refreshRateLimit, async (c) => {
     }
     
     // Use TimelineService to refresh timeline
-    const timelineService = new TimelineService();
+    // Use the shared database connection for timeline service
+    const { getSQLiteConnection } = await import('../../db/connection.js');
+    const sqliteConnection = getSQLiteConnection();
+    const { TimelineDatabase } = await import('../services/timeline-database.js');
+    const timelineService = new TimelineService(new TimelineDatabase(sqliteConnection));
     const timeline = await timelineService.refreshTimeline(malId);
     
     console.log(`✅ Successfully refreshed timeline with ${timeline.totalEntries} entries`);
@@ -111,7 +115,11 @@ timeline.get('/status', timelineRateLimit, async (c) => {
     const watchlistEntry = await getWatchlistEntryByMalId(malId);
     
     // Use TimelineService to get status
-    const timelineService = new TimelineService();
+    // Use the shared database connection for timeline service
+    const { getSQLiteConnection } = await import('../../db/connection.js');
+    const sqliteConnection = getSQLiteConnection();
+    const { TimelineDatabase } = await import('../services/timeline-database.js');
+    const timelineService = new TimelineService(new TimelineDatabase(sqliteConnection));
     const status = await timelineService.getTimelineStatus(malId);
     
     console.log(`✅ Timeline status retrieved for MAL ID ${malId}:`, status);
@@ -168,7 +176,11 @@ timeline.get('/:malId', timelineRateLimit, async (c) => {
     const watchlistEntry = await getWatchlistEntryByMalId(malId);
     
     // Generate timeline using TimelineService
-    const timelineService = new TimelineService();
+    // Use the shared database connection for timeline service
+    const { getSQLiteConnection } = await import('../../db/connection.js');
+    const sqliteConnection = getSQLiteConnection();
+    const { TimelineDatabase } = await import('../services/timeline-database.js');
+    const timelineService = new TimelineService(new TimelineDatabase(sqliteConnection));
     const timeline = await timelineService.getAnimeTimeline(malId);
     
     console.log(`✅ Generated timeline with ${timeline.totalEntries} entries`);

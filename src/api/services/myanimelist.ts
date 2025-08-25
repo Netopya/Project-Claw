@@ -7,6 +7,7 @@ import type {
   RelationshipType 
 } from '../../types/timeline.js';
 import type { NewAnimeRelationship } from '../../db/schema.js';
+import { config } from '../../config/env.js';
 
 // Enhanced API response interfaces
 export interface EnhancedMyAnimeListResponse extends MyAnimeListResponse {
@@ -45,11 +46,12 @@ export class MyAnimeListService {
   private rateLimitInfo: RateLimitInfo | null = null;
 
   constructor(clientId?: string, clientSecret?: string) {
-    this.clientId = clientId !== undefined ? clientId : (process.env.MAL_CLIENT_ID || '');
-    this.clientSecret = clientSecret !== undefined ? clientSecret : (process.env.MAL_CLIENT_SECRET || '');
+    this.clientId = clientId !== undefined ? clientId : config.malClientId;
+    this.clientSecret = clientSecret !== undefined ? clientSecret : config.malClientSecret;
     
     if (!this.clientId) {
       console.warn('MyAnimeList API credentials not configured. Some features may not work.');
+      console.warn('Make sure MAL_CLIENT_ID is set in your environment or env file.');
     }
   }
 

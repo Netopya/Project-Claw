@@ -4,8 +4,9 @@ import * as schema from './schema.js';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { existsSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
+import { config } from '../config/env.js';
 
-const DATABASE_PATH = process.env.DATABASE_PATH || './data/anime.db';
+const DATABASE_PATH = config.databasePath;
 
 // Ensure the data directory exists
 const dbDir = dirname(DATABASE_PATH);
@@ -21,6 +22,11 @@ sqlite.pragma('journal_mode = WAL');
 
 // Create Drizzle instance
 export const db = drizzle(sqlite, { schema });
+
+// Export SQLite connection for services that need direct access
+export function getSQLiteConnection() {
+  return sqlite;
+}
 
 // Database initialization function - creates fresh schema
 export async function initializeDatabase() {

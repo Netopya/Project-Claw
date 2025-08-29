@@ -29,46 +29,64 @@ export function TimelinePopover({ entry, onClose, anchorElement }: TimelinePopov
     const popoverRect = popoverRef.current.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-    const scrollX = window.scrollX;
-    const scrollY = window.scrollY;
+    const margin = 8; // Consistent margin from viewport edges
 
-    // Preferred placement is above the anchor
+    // Calculate available space in each direction
+    const spaceAbove = anchorRect.top - margin;
+    const spaceBelow = viewportHeight - anchorRect.bottom - margin;
+    const spaceLeft = anchorRect.left - margin;
+    const spaceRight = viewportWidth - anchorRect.right - margin;
+
     let placement: PopoverPosition['placement'] = 'top';
-    let top = anchorRect.top + scrollY - popoverRect.height - 8;
-    let left = anchorRect.left + scrollX + (anchorRect.width / 2) - (popoverRect.width / 2);
+    let top: number;
+    let left: number;
 
-    // Check if popover fits above
-    if (top < scrollY + 8) {
-      // Try below
+    // Determine optimal placement based on available space
+    const needsVerticalSpace = popoverRect.height + margin;
+    const needsHorizontalSpace = popoverRect.width + margin;
+
+    // Try vertical placements first (top/bottom)
+    if (spaceAbove >= needsVerticalSpace) {
+      // Place above
+      placement = 'top';
+      top = anchorRect.top - popoverRect.height - margin;
+      left = anchorRect.left + (anchorRect.width / 2) - (popoverRect.width / 2);
+    } else if (spaceBelow >= needsVerticalSpace) {
+      // Place below
       placement = 'bottom';
-      top = anchorRect.bottom + scrollY + 8;
-      
-      // If still doesn't fit, try left or right
-      if (top + popoverRect.height > scrollY + viewportHeight - 8) {
-        if (anchorRect.left > popoverRect.width + 16) {
-          placement = 'left';
-          top = anchorRect.top + scrollY + (anchorRect.height / 2) - (popoverRect.height / 2);
-          left = anchorRect.left + scrollX - popoverRect.width - 8;
-        } else if (anchorRect.right + popoverRect.width + 16 < viewportWidth) {
-          placement = 'right';
-          top = anchorRect.top + scrollY + (anchorRect.height / 2) - (popoverRect.height / 2);
-          left = anchorRect.right + scrollX + 8;
-        } else {
-          // Fallback to bottom with viewport constraint
-          placement = 'bottom';
-          top = Math.min(anchorRect.bottom + scrollY + 8, scrollY + viewportHeight - popoverRect.height - 8);
-        }
+      top = anchorRect.bottom + margin;
+      left = anchorRect.left + (anchorRect.width / 2) - (popoverRect.width / 2);
+    } else if (spaceRight >= needsHorizontalSpace) {
+      // Place to the right
+      placement = 'right';
+      top = anchorRect.top + (anchorRect.height / 2) - (popoverRect.height / 2);
+      left = anchorRect.right + margin;
+    } else if (spaceLeft >= needsHorizontalSpace) {
+      // Place to the left
+      placement = 'left';
+      top = anchorRect.top + (anchorRect.height / 2) - (popoverRect.height / 2);
+      left = anchorRect.left - popoverRect.width - margin;
+    } else {
+      // Fallback: place where there's most space, constrained to viewport
+      if (spaceBelow >= spaceAbove) {
+        placement = 'bottom';
+        top = Math.min(anchorRect.bottom + margin, viewportHeight - popoverRect.height - margin);
+        left = anchorRect.left + (anchorRect.width / 2) - (popoverRect.width / 2);
+      } else {
+        placement = 'top';
+        top = Math.max(margin, anchorRect.top - popoverRect.height - margin);
+        left = anchorRect.left + (anchorRect.width / 2) - (popoverRect.width / 2);
       }
     }
 
-    // Ensure popover stays within horizontal viewport bounds
+    // Ensure popover stays within horizontal viewport bounds for vertical placements
     if (placement === 'top' || placement === 'bottom') {
-      left = Math.max(8, Math.min(left, viewportWidth - popoverRect.width - 8));
+      left = Math.max(margin, Math.min(left, viewportWidth - popoverRect.width - margin));
     }
 
-    // Ensure popover stays within vertical viewport bounds
+    // Ensure popover stays within vertical viewport bounds for horizontal placements
     if (placement === 'left' || placement === 'right') {
-      top = Math.max(scrollY + 8, Math.min(top, scrollY + viewportHeight - popoverRect.height - 8));
+      top = Math.max(margin, Math.min(top, viewportHeight - popoverRect.height - margin));
     }
 
     return { top, left, placement };

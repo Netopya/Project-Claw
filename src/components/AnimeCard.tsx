@@ -197,8 +197,8 @@ export function AnimeCard({
                 {displayTitle}
               </h3>
               {hasJapaneseTitle && (
-                <p className="text-sm text-gray-600 dark:text-gray-400 truncate" title={anime.titleJapanese}>
-                  {anime.titleJapanese}
+                <p className="text-sm text-gray-600 dark:text-gray-400 truncate" title={anime.title}>
+                  {anime.title}
                 </p>
               )}
             </div>

@@ -9,6 +9,7 @@ export { LoadingSkeleton, AnimeCardSkeleton, AddAnimeFormSkeleton, WatchlistSkel
 export { TimelineBadge } from './TimelineBadge';
 export { TimelineBadges } from './TimelineBadges';
 export { TimelinePopover } from './TimelinePopover';
+export { ExportSection } from './ExportSection';
 
 export type { Toast, ToastType } from '../types/toast';
 export type { 

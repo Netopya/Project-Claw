@@ -1,0 +1,865 @@
+{
+  "quotes": [
+    {
+      "quote": "If you win, you live. If you lose, you die. If you don't fight, you can't win!",
+      "character": "Eren Yeager",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I am justice! I protect the innocent and those who fear evil.",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "The universe has a beginning, but no end — infinity.",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "A spy must always be prepared for any situation.",
+      "character": "Loid Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "I want to be useful to someone. I want to be that someone's number one.",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "Even if we forget the faces of our friends, we will never forget the bonds that were carved into our souls.",
+      "character": "Mikasa Ackerman",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "Humans are interesting creatures. They think order and chaos are somehow opposites.",
+      "character": "Ryuk",
+      "source": "Death Note"
+    },
+    {
+      "quote": "People die when they are killed... That's the way it should be.",
+      "character": "Kurisu Makise",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "The real question is not whether machines think but whether men do.",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "This is exhilarating!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll slice apart the Titans and put an end to this!",
+      "character": "Eren Yeager",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "In this world, wherever there is light, there are also shadows.",
+      "character": "L Lawliet",
+      "source": "Death Note"
+    },
+    {
+      "quote": "Reading Steiner... the ability to retain memories from other worldlines.",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "Waku waku!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "Science is elegant!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I will keep moving forward until I destroy my enemies.",
+      "character": "Eren Yeager",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "Justice will prevail!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "El Psy Kongroo.",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "A perfect family requires perfect acting.",
+      "character": "Loid Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "Ten billion percent!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    }
+  ]
+}    {
+
+      "quote": "I am the bone of my sword.",
+      "character": "Kirito",
+      "source": "Sword Art Online"
+    },
+    {
+      "quote": "Reality is just a crappy game.",
+      "character": "Sora",
+      "source": "No Game No Life"
+    },
+    {
+      "quote": "I'll become the Wizard King!",
+      "character": "Asta",
+      "source": "Black Clover"
+    },
+    {
+      "quote": "Explosion!",
+      "character": "Megumin",
+      "source": "Kono Subarashii Sekai ni Shukufuku wo!"
+    },
+    {
+      "quote": "I refuse to let my comrades die!",
+      "character": "Tanjiro Kamado",
+      "source": "Kimetsu no Yaiba"
+    },
+    {
+      "quote": "The world is cruel, but also very beautiful.",
+      "character": "Mikasa Ackerman",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I'll take a potato chip... and eat it!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "Tuturu~",
+      "character": "Mayuri Shiina",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "Papa is a spy, Mama is an assassin!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "Get excited!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll kill every last Titan!",
+      "character": "Eren Yeager",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "Kira is childish and he hates losing.",
+      "character": "L Lawliet",
+      "source": "Death Note"
+    },
+    {
+      "quote": "I am mad scientist! It's so cool! Sonuvabitch!",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "Elegant!",
+      "character": "Yor Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "This is the power of science!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I will wrap that scarf around you as many times as you want.",
+      "character": "Mikasa Ackerman",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I'll solve equations with my right hand and write names with my left.",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "The past cannot be changed, but the future is yet in your power.",
+      "character": "Kurisu Makise",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "Mission accomplished!",
+      "character": "Loid Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "Science doesn't lie!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll use any means necessary to eliminate the Titans.",
+      "character": "Levi Ackerman",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I am Kira!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "Time is passing so quickly. Right now, I feel like complaining to Einstein.",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I must eliminate all threats to our family.",
+      "character": "Yor Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "One millimeter at a time!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "If you think reality is just living comfortably and following your own whims, can you seriously dare to call yourself a soldier?",
+      "character": "Levi Ackerman",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I'll create a new world!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "Christina!",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "Peanuts!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "This is where the fun begins!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll exterminate every last one of them!",
+      "character": "Eren Yeager",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "The real evil is the power to kill people.",
+      "character": "Near",
+      "source": "Death Note"
+    },
+    {
+      "quote": "Mayushii's watch has stopped.",
+      "character": "Mayuri Shiina",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I want to go to the aquarium!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "Science is the most exciting thing in the world!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "Freedom... that's what I'm fighting for.",
+      "character": "Eren Yeager",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I'll become the god of the new world!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "The organization is always watching.",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I got a perfect score!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "Let's get crafting!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll keep moving forward.",
+      "character": "Eren Yeager",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I am L.",
+      "character": "L Lawliet",
+      "source": "Death Note"
+    },
+    {
+      "quote": "Lab mem number 002!",
+      "character": "Mayuri Shiina",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I can read minds!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "This is bad!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I was born into this world.",
+      "character": "Eren Yeager",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I'll rid the world of evil!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "Operation Skuld is in progress.",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I love my family!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "Science rules!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    }
+  ]
+}  
+  {
+      "quote": "I want to see the ocean.",
+      "character": "Armin Arlert",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "Humans are so interesting!",
+      "character": "Ryuk",
+      "source": "Death Note"
+    },
+    {
+      "quote": "I failed... I failed again...",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I'm going to be the best spy!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "Let's revive humanity with science!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll devote my heart!",
+      "character": "Erwin Smith",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I'll make this world peaceful!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "Okarin, you're being mean to Mayushii!",
+      "character": "Mayuri Shiina",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "Papa, let's play!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "This is getting exciting!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "Humanity's strongest soldier.",
+      "character": "Levi Ackerman",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I'll be the god of justice!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "The choice of Steins Gate!",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I want to help everyone!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "Science is beautiful!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll fight for humanity!",
+      "character": "Eren Yeager",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "This world is rotten!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "I'm not a pervert, I'm a gentleman!",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I love peanuts and my family!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "Let's get scientific!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll protect my friends!",
+      "character": "Mikasa Ackerman",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I am justice incarnate!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "This is the will of Steins Gate!",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I want to be useful!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "Science never lies!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll never give up!",
+      "character": "Eren Yeager",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I'll create a perfect world!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "Mayushii is Okarin's hostage!",
+      "character": "Mayuri Shiina",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I'm a good girl!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "This is so exciting I could die!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll destroy all my enemies!",
+      "character": "Eren Yeager",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I'll judge all criminals!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "I'm a mad scientist!",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I want to make everyone happy!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "Science is the answer to everything!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll keep fighting until I win!",
+      "character": "Eren Yeager",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I'll eliminate all evil!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "The future is not set in stone!",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I love my papa and mama!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "Let's build a kingdom of science!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll protect everyone I care about!",
+      "character": "Mikasa Ackerman",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I'll become the god of this world!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "I'll save Mayuri no matter what!",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I want to help save the world!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "This is the power of modern science!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll never stop moving forward!",
+      "character": "Eren Yeager",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I'll purify this world!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "I am Hououin Kyouma!",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I'm the best esper!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "Science will save us all!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    }
+  ]
+}    {
+
+      "quote": "I'll fight for freedom!",
+      "character": "Eren Yeager",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I'll create a world without crime!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "Time travel is possible!",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I want to be the best daughter!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "Let's get excited about science!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll dedicate my heart to humanity!",
+      "character": "Erwin Smith",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I'll be the savior of mankind!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "The world line is changing!",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I love my new family!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "This is the age of science!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll never surrender!",
+      "character": "Eren Yeager",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I'll judge the wicked!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "I'll reach Steins Gate!",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I want to make friends!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "Science is our salvation!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll protect my people!",
+      "character": "Mikasa Ackerman",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I'll bring justice to this world!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "I'll change the past!",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I want to help everyone be happy!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "Let's revive civilization!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll fight until the end!",
+      "character": "Eren Yeager",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I'll cleanse this world of evil!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "I'll save everyone I love!",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I'm going to be the best spy ever!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "Science will light the way!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll never give up on my dreams!",
+      "character": "Eren Yeager",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I'll create a perfect society!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "I'll protect the timeline!",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I want to protect world peace!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "This is the dawn of a new age!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll destroy all obstacles!",
+      "character": "Eren Yeager",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I'll be humanity's salvation!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "I'll find the true timeline!",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I love my secret identity!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "Science conquers all!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll keep fighting for what's right!",
+      "character": "Eren Yeager",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I'll eliminate all criminals!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "I'll master time travel!",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I want to be the best student!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "Let's build the future with science!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll never stop believing!",
+      "character": "Eren Yeager",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I'll bring order to chaos!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "I'll save the world from despair!",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I want to make everyone smile!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "This is the miracle of science!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll fight for my beliefs!",
+      "character": "Eren Yeager",
+      "source": "Shingeki no Kyojin"
+    },
+    {
+      "quote": "I'll reshape this world!",
+      "character": "Light Yagami",
+      "source": "Death Note"
+    },
+    {
+      "quote": "I'll protect everyone's future!",
+      "character": "Okabe Rintarou",
+      "source": "Steins;Gate"
+    },
+    {
+      "quote": "I'm the luckiest girl in the world!",
+      "character": "Anya Forger",
+      "source": "Spy x Family"
+    },
+    {
+      "quote": "Science is humanity's greatest weapon!",
+      "character": "Senku Ishigami",
+      "source": "Dr. Stone"
+    },
+    {
+      "quote": "I'll never back down!",
+      "character": "Eren Yeager",
+      "source": "Shingeki no Kyojin"
+    }
+  ]
+}

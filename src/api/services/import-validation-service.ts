@@ -9,7 +9,7 @@ import type {
 } from '../../types/export-import.js';
 import { db } from '../../db/connection.js';
 import { animeInfo, userWatchlist } from '../../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { createHash } from 'crypto';
 import { SchemaMigrationService } from './schema-migration-service.js';
 
@@ -478,7 +478,7 @@ export class ImportValidationService {
         const existingAnime = await db
           .select({ malId: animeInfo.malId, title: animeInfo.title })
           .from(animeInfo)
-          .where(eq(animeInfo.malId, importMalIds[0])); // This is a simplified check - in practice you'd use IN clause
+          .where(inArray(animeInfo.malId, importMalIds));
 
         // For each import anime, check if it exists
         for (const importAnime of importData.animeInfo) {
@@ -494,7 +494,6 @@ export class ImportValidationService {
       }
 
       // Check for duplicate watchlist entries
-      // This is a simplified check - in practice you'd need to join with anime_info
       const importAnimeInfoIds = importData.userWatchlist.map(entry => entry.animeInfoId);
       if (importAnimeInfoIds.length > 0) {
         const existingWatchlistEntries = await db
@@ -503,7 +502,8 @@ export class ImportValidationService {
             title: animeInfo.title 
           })
           .from(userWatchlist)
-          .innerJoin(animeInfo, eq(userWatchlist.animeInfoId, animeInfo.id));
+          .innerJoin(animeInfo, eq(userWatchlist.animeInfoId, animeInfo.id))
+          .where(inArray(userWatchlist.animeInfoId, importAnimeInfoIds));
 
         for (const importEntry of importData.userWatchlist) {
           const existing = existingWatchlistEntries.find(e => e.animeInfoId === importEntry.animeInfoId);

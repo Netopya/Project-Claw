@@ -96,7 +96,13 @@
   - Write tests for import execution and error scenarios
   - _Requirements: 2.3, 2.5, 3.2, 3.3, 3.4, 4.3_
 
-- [ ] 8. Create import API endpoints
+- [x] 8. Create import API endpoints
+
+
+
+
+
+
   - Implement POST /api/import/validate endpoint for file validation
   - Implement POST /api/import/preview endpoint for import preview
   - Implement POST /api/import/execute endpoint for import execution

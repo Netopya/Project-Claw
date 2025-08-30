@@ -1,0 +1,463 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { StatisticsService } from '../api/services/statistics-service.js';
+
+// Server-side data fetching for initial database statistics
+let initialStats;
+let statsError = null;
+
+try {
+  const statisticsService = new StatisticsService();
+  initialStats = await statisticsService.getDatabaseStatistics();
+} catch (error) {
+  console.error('Error fetching initial database statistics:', error);
+  statsError = error instanceof Error ? error.message : 'Failed to load database statistics';
+  // Provide fallback stats
+  initialStats = {
+    animeInfo: 0,
+    userWatchlist: 0,
+    animeRelationships: 0,
+    timelineCache: 0,
+    total: 0,
+    lastUpdated: new Date().toISOString()
+  };
+}
+---
+
+<Layout 
+  title="Data Management - Project Claw" 
+  description="Export and import your anime database for backup and migration purposes"
+>
+  <div class="max-w-4xl mx-auto space-y-8">
+    <!-- Page Header -->
+    <div class="text-center">
+      <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-4">
+        Data Management
+      </h1>
+      <p class="text-base sm:text-lg text-gray-600 dark:text-gray-400 px-4">
+        Export your anime data for backup or import data from another source
+      </p>
+    </div>
+
+    <!-- Database Statistics -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+      <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+        Current Database Statistics
+      </h2>
+      
+      {statsError && (
+        <div class="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+          <div class="flex">
+            <svg class="w-5 h-5 text-yellow-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+            </svg>
+            <div>
+              <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                Warning: Statistics Load Error
+              </h3>
+              <p class="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                {statsError}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <div class="text-2xl font-bold text-blue-600 dark:text-blue-400" id="anime-info-count">
+            {initialStats.animeInfo.toLocaleString()}
+          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">Anime Info</div>
+        </div>
+        <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <div class="text-2xl font-bold text-green-600 dark:text-green-400" id="watchlist-count">
+            {initialStats.userWatchlist.toLocaleString()}
+          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">Watchlist</div>
+        </div>
+        <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <div class="text-2xl font-bold text-purple-600 dark:text-purple-400" id="relationships-count">
+            {initialStats.animeRelationships.toLocaleString()}
+          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">Relationships</div>
+        </div>
+        <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <div class="text-2xl font-bold text-orange-600 dark:text-orange-400" id="cache-count">
+            {initialStats.timelineCache.toLocaleString()}
+          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">Timeline Cache</div>
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
+        <span>Total Records: <span class="font-medium" id="total-count">{initialStats.total.toLocaleString()}</span></span>
+        <span>Last Updated: <span id="last-updated">{new Date(initialStats.lastUpdated).toLocaleString()}</span></span>
+        <button 
+          id="refresh-stats"
+          class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
+          aria-label="Refresh database statistics"
+        >
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- Export Section -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+      <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+        Export Data
+      </h2>
+      <p class="text-gray-600 dark:text-gray-400 mb-6">
+        Create a backup file containing all your anime data. This file can be used to restore your data or migrate to another instance.
+      </p>
+      
+      <div class="space-y-4">
+        <button 
+          id="export-button"
+          class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          aria-label="Export all database data"
+        >
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          <span id="export-button-text">Export Data</span>
+        </button>
+
+        <!-- Export Progress -->
+        <div id="export-progress" class="hidden">
+          <div class="bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+            <div id="export-progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mt-2" id="export-status">Preparing export...</p>
+        </div>
+
+        <!-- Export Messages -->
+        <div id="export-messages" class="space-y-2"></div>
+      </div>
+    </div>
+
+    <!-- Import Section -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+      <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+        Import Data
+      </h2>
+      <p class="text-gray-600 dark:text-gray-400 mb-6">
+        Import data from a backup file. You can choose to merge with existing data or replace all current data.
+      </p>
+
+      <div class="space-y-6">
+        <!-- File Upload Area -->
+        <div 
+          id="file-drop-zone"
+          class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center hover:border-blue-400 dark:hover:border-blue-500 transition-colors cursor-pointer"
+        >
+          <svg class="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+          </svg>
+          <p class="text-lg font-medium text-gray-900 dark:text-white mb-2">
+            Drop your export file here
+          </p>
+          <p class="text-gray-600 dark:text-gray-400 mb-4">
+            or click to browse for a file
+          </p>
+          <input 
+            type="file" 
+            id="file-input" 
+            accept=".json"
+            class="hidden"
+            aria-label="Select import file"
+          />
+          <button 
+            id="browse-button"
+            class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Browse Files
+          </button>
+        </div>
+
+        <!-- Import Options -->
+        <div id="import-options" class="hidden space-y-4">
+          <h3 class="text-lg font-medium text-gray-900 dark:text-white">Import Options</h3>
+          
+          <div class="space-y-3">
+            <div class="flex items-center">
+              <input 
+                id="import-mode-merge" 
+                name="import-mode" 
+                type="radio" 
+                value="merge" 
+                checked
+                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600"
+              />
+              <label for="import-mode-merge" class="ml-3 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Merge with existing data
+                <span class="block text-xs text-gray-500 dark:text-gray-400">Add new records and update existing ones</span>
+              </label>
+            </div>
+            
+            <div class="flex items-center">
+              <input 
+                id="import-mode-replace" 
+                name="import-mode" 
+                type="radio" 
+                value="replace"
+                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600"
+              />
+              <label for="import-mode-replace" class="ml-3 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Replace all existing data
+                <span class="block text-xs text-gray-500 dark:text-gray-400">Clear database before importing</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Import Preview -->
+        <div id="import-preview" class="hidden">
+          <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Import Preview</h3>
+          <div id="import-preview-content" class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+            <!-- Preview content will be populated by JavaScript -->
+          </div>
+        </div>
+
+        <!-- Import Actions -->
+        <div id="import-actions" class="hidden flex space-x-4">
+          <button 
+            id="import-button"
+            class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 12l2 2 4-4"></path>
+            </svg>
+            <span id="import-button-text">Import Data</span>
+          </button>
+          
+          <button 
+            id="cancel-import"
+            class="inline-flex items-center px-6 py-3 border border-gray-300 dark:border-gray-600 text-base font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Cancel
+          </button>
+        </div>
+
+        <!-- Import Progress -->
+        <div id="import-progress" class="hidden">
+          <div class="bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+            <div id="import-progress-bar" class="bg-green-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mt-2" id="import-status">Preparing import...</p>
+        </div>
+
+        <!-- Import Messages -->
+        <div id="import-messages" class="space-y-2"></div>
+      </div>
+    </div>
+
+    <!-- Back to Watchlist -->
+    <div class="text-center">
+      <a 
+        href="/" 
+        class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+      >
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+        </svg>
+        Back to Watchlist
+      </a>
+    </div>
+  </div>
+
+  <!-- Export/Import JavaScript -->
+  <script>
+    // Initial statistics data from server
+    const initialStats = {initialStats && JSON.stringify(initialStats)};
+    
+    // DOM elements
+    const refreshStatsBtn = document.getElementById('refresh-stats');
+    const exportButton = document.getElementById('export-button');
+    const exportButtonText = document.getElementById('export-button-text');
+    const exportProgress = document.getElementById('export-progress');
+    const exportProgressBar = document.getElementById('export-progress-bar');
+    const exportStatus = document.getElementById('export-status');
+    const exportMessages = document.getElementById('export-messages');
+    
+    const fileDropZone = document.getElementById('file-drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const browseButton = document.getElementById('browse-button');
+    const importOptions = document.getElementById('import-options');
+    const importPreview = document.getElementById('import-preview');
+    const importPreviewContent = document.getElementById('import-preview-content');
+    const importActions = document.getElementById('import-actions');
+    const importButton = document.getElementById('import-button');
+    const importButtonText = document.getElementById('import-button-text');
+    const cancelImportButton = document.getElementById('cancel-import');
+    const importProgress = document.getElementById('import-progress');
+    const importProgressBar = document.getElementById('import-progress-bar');
+    const importStatus = document.getElementById('import-status');
+    const importMessages = document.getElementById('import-messages');
+
+    // Statistics refresh functionality
+    refreshStatsBtn?.addEventListener('click', async () => {
+      try {
+        refreshStatsBtn.textContent = 'Refreshing...';
+        refreshStatsBtn.disabled = true;
+        
+        const response = await fetch('/api/export/stats');
+        const data = await response.json();
+        
+        if (data.success) {
+          updateStatsDisplay(data.data);
+        } else {
+          showMessage(exportMessages, 'error', 'Failed to refresh statistics: ' + data.error);
+        }
+      } catch (error) {
+        console.error('Error refreshing statistics:', error);
+        showMessage(exportMessages, 'error', 'Failed to refresh statistics');
+      } finally {
+        refreshStatsBtn.textContent = 'Refresh';
+        refreshStatsBtn.disabled = false;
+      }
+    });
+
+    // Export functionality
+    exportButton?.addEventListener('click', async () => {
+      try {
+        exportButton.disabled = true;
+        exportButtonText.textContent = 'Exporting...';
+        exportProgress.classList.remove('hidden');
+        exportMessages.innerHTML = '';
+        
+        // Simulate progress
+        updateProgress(exportProgressBar, exportStatus, 10, 'Preparing export...');
+        
+        const response = await fetch('/api/export/generate', {
+          method: 'POST'
+        });
+        
+        updateProgress(exportProgressBar, exportStatus, 50, 'Generating export file...');
+        
+        if (response.ok) {
+          updateProgress(exportProgressBar, exportStatus, 90, 'Downloading file...');
+          
+          // Get filename from response headers
+          const contentDisposition = response.headers.get('Content-Disposition');
+          const filename = contentDisposition 
+            ? contentDisposition.split('filename=')[1]?.replace(/"/g, '') 
+            : `project-claw-export-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+          
+          // Download the file
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+          
+          updateProgress(exportProgressBar, exportStatus, 100, 'Export complete!');
+          showMessage(exportMessages, 'success', `Export completed successfully! Downloaded: ${filename}`);
+        } else {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Export failed');
+        }
+      } catch (error) {
+        console.error('Export error:', error);
+        showMessage(exportMessages, 'error', 'Export failed: ' + error.message);
+      } finally {
+        exportButton.disabled = false;
+        exportButtonText.textContent = 'Export Data';
+        setTimeout(() => {
+          exportProgress.classList.add('hidden');
+          updateProgress(exportProgressBar, exportStatus, 0, 'Preparing export...');
+        }, 3000);
+      }
+    });
+
+    // File upload functionality
+    browseButton?.addEventListener('click', () => {
+      fileInput?.click();
+    });
+
+    fileDropZone?.addEventListener('click', () => {
+      fileInput?.click();
+    });
+
+    fileDropZone?.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      fileDropZone.classList.add('border-blue-400', 'dark:border-blue-500');
+    });
+
+    fileDropZone?.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      fileDropZone.classList.remove('border-blue-400', 'dark:border-blue-500');
+    });
+
+    fileDropZone?.addEventListener('drop', (e) => {
+      e.preventDefault();
+      fileDropZone.classList.remove('border-blue-400', 'dark:border-blue-500');
+      
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        handleFileSelection(files[0]);
+      }
+    });
+
+    fileInput?.addEventListener('change', (e) => {
+      const files = e.target.files;
+      if (files.length > 0) {
+        handleFileSelection(files[0]);
+      }
+    });
+
+    // Cancel import
+    cancelImportButton?.addEventListener('click', () => {
+      resetImportUI();
+    });
+
+    // Utility functions
+    function updateStatsDisplay(stats) {
+      document.getElementById('anime-info-count').textContent = stats.animeInfo.toLocaleString();
+      document.getElementById('watchlist-count').textContent = stats.userWatchlist.toLocaleString();
+      document.getElementById('relationships-count').textContent = stats.animeRelationships.toLocaleString();
+      document.getElementById('cache-count').textContent = stats.timelineCache.toLocaleString();
+      document.getElementById('total-count').textContent = stats.total.toLocaleString();
+      document.getElementById('last-updated').textContent = new Date(stats.lastUpdated).toLocaleString();
+    }
+
+    function updateProgress(progressBar, statusText, percentage, message) {
+      progressBar.style.width = percentage + '%';
+      statusText.textContent = message;
+    }
+
+    function showMessage(container, type, message) {
+      const messageEl = document.createElement('div');
+      const bgColor = type === 'success' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' :
+                      type === 'error' ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' :
+                      'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800';
+      const textColor = type === 'success' ? 'text-green-800 dark:text-green-200' :
+                        type === 'error' ? 'text-red-800 dark:text-red-200' :
+                        'text-blue-800 dark:text-blue-200';
+      
+      messageEl.className = `p-4 ${bgColor} border rounded-md`;
+      messageEl.innerHTML = `<p class="text-sm ${textColor}">${message}</p>`;
+      container.appendChild(messageEl);
+    }
+
+    function handleFileSelection(file) {
+      // Implementation will be added in subsequent tasks
+      console.log('File selected:', file.name);
+      importOptions.classList.remove('hidden');
+    }
+
+    function resetImportUI() {
+      importOptions.classList.add('hidden');
+      importPreview.classList.add('hidden');
+      importActions.classList.add('hidden');
+      importProgress.classList.add('hidden');
+      importMessages.innerHTML = '';
+      fileInput.value = '';
+    }
+  </script>
+</Layout>

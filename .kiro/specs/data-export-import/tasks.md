@@ -57,7 +57,13 @@
   - Write integration tests for export endpoints
   - _Requirements: 1.1, 1.2, 1.3, 4.5_
 
-- [ ] 5. Build import validation service
+- [x] 5. Build import validation service
+
+
+
+
+
+
   - Implement file format validation and schema checking
   - Add schema version detection and compatibility checking
   - Create import preview functionality with conflict detection

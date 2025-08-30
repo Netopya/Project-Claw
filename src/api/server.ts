@@ -6,6 +6,7 @@ import { initializeDatabase } from '../db/connection.js';
 import { animeRoutes } from './routes/anime.js';
 import { healthRoutes } from './routes/health.js';
 import { timelineRoutes } from './routes/timeline.js';
+import { exportRoutes } from './routes/export.js';
 import { config } from '../config/env.js';
 
 // Create Hono app
@@ -24,6 +25,7 @@ app.use('*', cors({
 app.route('/api/health', healthRoutes);
 app.route('/api/anime', animeRoutes);
 app.route('/api/timeline', timelineRoutes);
+app.route('/api/export', exportRoutes);
 
 // Root endpoint
 app.get('/', (c) => {
@@ -35,6 +37,7 @@ app.get('/', (c) => {
       health: '/api/health',
       anime: '/api/anime',
       timeline: '/api/timeline',
+      export: '/api/export',
     },
   });
 });

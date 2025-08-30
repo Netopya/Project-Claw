@@ -353,7 +353,7 @@ describe('AnimeCard', () => {
       expect(timelineContainer).not.toHaveClass('border-t');
       
       // Should still have proper spacing classes
-      expect(timelineContainer).toHaveClass('mt-4', 'pt-4');
+      expect(timelineContainer).toHaveClass('p-4');
     });
   });
 

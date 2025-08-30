@@ -145,4 +145,5 @@ export interface MigrationResult {
   toVersion: string;
   changes: string[];
   errors: ImportError[];
+  migratedData?: ExportData;
 }

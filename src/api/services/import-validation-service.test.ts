@@ -130,7 +130,7 @@ describe('ImportValidationService', () => {
       expect(result.errors.some(e => e.code === 'UNSUPPORTED_NEWER_VERSION')).toBe(true);
     });
 
-    it('should reject older schema version (migration not implemented)', async () => {
+    it('should reject unsupported older schema version', async () => {
       const olderVersionData = {
         metadata: {
           version: '0.9.0', // Older than supported
@@ -146,8 +146,7 @@ describe('ImportValidationService', () => {
       const result = await service.validateImportFile(buffer);
       
       expect(result.isValid).toBe(false);
-      expect(result.errors.some(e => e.code === 'MIGRATION_NOT_IMPLEMENTED')).toBe(true);
-      expect(result.warnings.some(w => w.code === 'OLDER_SCHEMA_VERSION')).toBe(true);
+      expect(result.errors.some(e => e.code === 'UNSUPPORTED_VERSION')).toBe(true);
     });
 
     it('should validate checksum correctly', async () => {
@@ -439,7 +438,7 @@ describe('ImportValidationService', () => {
       expect(result.errors.some(e => e.code === 'UNSUPPORTED_NEWER_VERSION')).toBe(true);
     });
 
-    it('should correctly identify older versions', async () => {
+    it('should correctly identify unsupported older versions', async () => {
       const olderVersionData = {
         metadata: {
           version: '0.8.0',
@@ -454,7 +453,8 @@ describe('ImportValidationService', () => {
       const buffer = Buffer.from(JSON.stringify(olderVersionData));
       const result = await service.validateImportFile(buffer);
       
-      expect(result.warnings.some(w => w.code === 'OLDER_SCHEMA_VERSION')).toBe(true);
+      expect(result.isValid).toBe(false);
+      expect(result.errors.some(e => e.code === 'UNSUPPORTED_VERSION')).toBe(true);
     });
   });
 

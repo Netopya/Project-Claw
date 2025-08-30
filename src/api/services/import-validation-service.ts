@@ -11,11 +11,17 @@ import { db } from '../../db/connection.js';
 import { animeInfo, userWatchlist } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { createHash } from 'crypto';
+import { SchemaMigrationService } from './schema-migration-service.js';
 
 export class ImportValidationService {
   private readonly CURRENT_SCHEMA_VERSION = '1.0.0';
   private readonly SUPPORTED_VERSIONS = ['1.0.0'];
   private readonly MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+  private readonly schemaMigrationService: SchemaMigrationService;
+
+  constructor() {
+    this.schemaMigrationService = new SchemaMigrationService();
+  }
 
   /**
    * Validate import file format and structure
@@ -84,13 +90,36 @@ export class ImportValidationService {
         return { isValid: false, errors, warnings };
       }
 
-      // Validate schema version
+      // Validate schema version and perform migration if needed
       const versionValidation = this.validateSchemaVersion(parsedData.metadata);
       errors.push(...versionValidation.errors);
       warnings.push(...versionValidation.warnings);
 
       if (!versionValidation.isSupported) {
         return { isValid: false, errors, warnings, metadata: parsedData.metadata };
+      }
+
+      // Perform schema migration if needed
+      if (parsedData.metadata.version !== this.CURRENT_SCHEMA_VERSION) {
+        const migrationResult = await this.schemaMigrationService.migrateToCurrentVersion(parsedData);
+        
+        if (!migrationResult.success) {
+          errors.push(...migrationResult.errors);
+          return { isValid: false, errors, warnings, metadata: parsedData.metadata };
+        }
+
+        // Use the migrated data for further validation
+        if (migrationResult.migratedData) {
+          parsedData = migrationResult.migratedData;
+        }
+
+        // Add migration info to warnings
+        for (const change of migrationResult.changes) {
+          warnings.push({
+            code: 'SCHEMA_MIGRATED',
+            message: change
+          });
+        }
       }
 
       // Validate against Zod schema
@@ -159,8 +188,8 @@ export class ImportValidationService {
 
     const fileVersion = metadata.version;
 
-    // Check if version is supported
-    if (!this.SUPPORTED_VERSIONS.includes(fileVersion)) {
+    // Use migration service to check if version is supported
+    if (!this.schemaMigrationService.isVersionSupported(fileVersion)) {
       // Check if it's a newer version
       if (this.isNewerVersion(fileVersion, this.CURRENT_SCHEMA_VERSION)) {
         errors.push({
@@ -170,25 +199,19 @@ export class ImportValidationService {
         return { isSupported: false, errors, warnings };
       }
 
-      // Check if it's an older version that might need migration
-      if (this.isOlderVersion(fileVersion, this.CURRENT_SCHEMA_VERSION)) {
-        warnings.push({
-          code: 'OLDER_SCHEMA_VERSION',
-          message: `Import file uses older schema version ${fileVersion}. Automatic migration to version ${this.CURRENT_SCHEMA_VERSION} will be attempted.`
-        });
-        // For now, we only support current version, but this is where migration would be handled
-        errors.push({
-          code: 'MIGRATION_NOT_IMPLEMENTED',
-          message: `Schema migration from version ${fileVersion} to ${this.CURRENT_SCHEMA_VERSION} is not yet implemented`
-        });
-        return { isSupported: false, errors, warnings };
-      }
-
       errors.push({
         code: 'UNSUPPORTED_VERSION',
-        message: `Unsupported schema version: ${fileVersion}`
+        message: `Unsupported schema version: ${fileVersion}. Supported versions: ${this.schemaMigrationService.getSupportedVersions().join(', ')}`
       });
       return { isSupported: false, errors, warnings };
+    }
+
+    // If it's an older version that needs migration
+    if (this.isOlderVersion(fileVersion, this.CURRENT_SCHEMA_VERSION)) {
+      warnings.push({
+        code: 'OLDER_SCHEMA_VERSION',
+        message: `Import file uses older schema version ${fileVersion}. Automatic migration to version ${this.CURRENT_SCHEMA_VERSION} will be performed.`
+      });
     }
 
     return { isSupported: true, errors, warnings };
@@ -544,13 +567,13 @@ export class ImportValidationService {
    * Get supported schema versions
    */
   getSupportedVersions(): string[] {
-    return [...this.SUPPORTED_VERSIONS];
+    return this.schemaMigrationService.getSupportedVersions();
   }
 
   /**
    * Get current schema version
    */
   getCurrentVersion(): string {
-    return this.CURRENT_SCHEMA_VERSION;
+    return this.schemaMigrationService.getCurrentVersion();
   }
 }

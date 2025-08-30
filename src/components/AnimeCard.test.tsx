@@ -99,10 +99,10 @@ describe('AnimeCard', () => {
       render(<AnimeCard anime={anime} onRemove={mockOnRemove} />);
 
       expect(screen.getByText('Test Anime English')).toBeInTheDocument();
-      expect(screen.getByText('テストアニメ')).toBeInTheDocument();
+      expect(screen.getByText('Test Anime')).toBeInTheDocument(); // This is anime.title shown as subtitle
       expect(screen.getByText('8.5')).toBeInTheDocument();
       expect(screen.getByText('12 episodes')).toBeInTheDocument();
-      expect(screen.getByText('Premiered Dec 2022')).toBeInTheDocument();
+      expect(screen.getByText('Premiered Jan 2023')).toBeInTheDocument();
     });
 
     it('renders with English title when titleEnglish is available', () => {
@@ -120,11 +120,14 @@ describe('AnimeCard', () => {
       const anime = createMockAnime({
         title: 'Original Title',
         titleEnglish: null,
+        titleJapanese: null, // Ensure no Japanese title to avoid duplicate display
       });
       
       render(<AnimeCard anime={anime} onRemove={mockOnRemove} />);
 
-      expect(screen.getByText('Original Title')).toBeInTheDocument();
+      // Should find the main title (h3 element)
+      const titleElement = screen.getByRole('heading', { level: 3 });
+      expect(titleElement).toHaveTextContent('Original Title');
     });
 
     it('handles missing image gracefully', () => {
@@ -167,6 +170,40 @@ describe('AnimeCard', () => {
       render(<AnimeCard anime={anime} onRemove={mockOnRemove} />);
 
       expect(screen.getByText('Unknown')).toBeInTheDocument();
+    });
+
+    it('displays consolidated metadata on single line', () => {
+      const anime = createMockAnime({
+        rating: 8.5,
+        numEpisodes: 12,
+        premiereDate: '2023-01-01'
+      });
+      
+      render(<AnimeCard anime={anime} onRemove={mockOnRemove} />);
+
+      // Check that rating, episodes, and premiere date are all present
+      expect(screen.getByText('8.5')).toBeInTheDocument();
+      expect(screen.getByText('12 episodes')).toBeInTheDocument();
+      expect(screen.getByText('Premiered Jan 2023')).toBeInTheDocument();
+      
+      // They should be in the same container (consolidated metadata)
+      const metadataContainer = screen.getByText('8.5').closest('.flex');
+      expect(metadataContainer).toContainElement(screen.getByText('12 episodes'));
+      expect(metadataContainer).toContainElement(screen.getByText('Premiered Jan 2023'));
+    });
+
+    it('handles null premiere date in consolidated metadata', () => {
+      const anime = createMockAnime({
+        rating: 7.5,
+        numEpisodes: 24,
+        premiereDate: null
+      });
+      
+      render(<AnimeCard anime={anime} onRemove={mockOnRemove} />);
+
+      expect(screen.getByText('7.5')).toBeInTheDocument();
+      expect(screen.getByText('24 episodes')).toBeInTheDocument();
+      expect(screen.getByText('Premiered Unknown')).toBeInTheDocument();
     });
   });
 
@@ -296,6 +333,28 @@ describe('AnimeCard', () => {
       expect(screen.queryByText('Loading timeline...')).not.toBeInTheDocument();
       expect(screen.queryByText('Timeline unavailable')).not.toBeInTheDocument();
     });
+
+    it('timeline section renders without border separator', () => {
+      const anime = createMockAnime();
+      const timeline = createMockTimeline(2);
+      
+      const { container } = render(
+        <AnimeCard 
+          anime={anime} 
+          onRemove={mockOnRemove} 
+          timeline={timeline}
+        />
+      );
+
+      // Find the timeline container
+      const timelineContainer = screen.getByTestId('timeline-badges').parentElement;
+      
+      // Should not have border-t class
+      expect(timelineContainer).not.toHaveClass('border-t');
+      
+      // Should still have proper spacing classes
+      expect(timelineContainer).toHaveClass('mt-4', 'pt-4');
+    });
   });
 
   describe('User Interactions', () => {
@@ -355,7 +414,7 @@ describe('AnimeCard', () => {
       
       render(<AnimeCard anime={anime} onRemove={mockOnRemove} />);
 
-      const malLink = screen.getByText('View on MyAnimeList');
+      const malLink = screen.getByTitle('View on MyAnimeList');
       expect(malLink).toHaveAttribute('href', 'https://myanimelist.net/anime/54321');
       expect(malLink).toHaveAttribute('target', '_blank');
       expect(malLink).toHaveAttribute('rel', 'noopener noreferrer');
@@ -451,6 +510,7 @@ describe('AnimeCard', () => {
 
     it('provides proper title attributes for truncated text', () => {
       const anime = createMockAnime({
+        title: 'とても長いアニメのタイトル', // Original title in Japanese
         titleEnglish: 'Very Long Anime Title That Might Get Truncated',
         titleJapanese: 'とても長いアニメのタイトル'
       });
@@ -470,7 +530,39 @@ describe('AnimeCard', () => {
       render(<AnimeCard anime={anime} onRemove={mockOnRemove} />);
 
       expect(screen.getByTitle('Remove from watchlist')).toBeInTheDocument();
+      expect(screen.getByTitle('View on MyAnimeList')).toBeInTheDocument();
       expect(screen.getByTitle('Drag to reorder')).toBeInTheDocument();
+    });
+
+    it('positions MyAnimeList icon in header area', () => {
+      const anime = createMockAnime();
+      
+      render(<AnimeCard anime={anime} onRemove={mockOnRemove} />);
+
+      const malIcon = screen.getByTitle('View on MyAnimeList');
+      const removeButton = screen.getByTitle('Remove from watchlist');
+      
+      // Both should be in the same action buttons container
+      const actionContainer = malIcon.closest('.flex-col');
+      expect(actionContainer).toContainElement(removeButton);
+      expect(actionContainer).toContainElement(malIcon);
+    });
+
+    it('MyAnimeList icon displays only icon without text', () => {
+      const anime = createMockAnime();
+      
+      render(<AnimeCard anime={anime} onRemove={mockOnRemove} />);
+
+      // Should have the icon link with title but no visible text
+      const malIcon = screen.getByTitle('View on MyAnimeList');
+      expect(malIcon).toBeInTheDocument();
+      
+      // Should not have the old text link
+      expect(screen.queryByText('View on MyAnimeList')).not.toBeInTheDocument();
+      
+      // Should contain an SVG icon
+      const svgIcon = malIcon.querySelector('svg');
+      expect(svgIcon).toBeInTheDocument();
     });
   });
 });

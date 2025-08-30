@@ -30,6 +30,7 @@
 - [x] 3. Add comprehensive positioning tests
 
 
+
   - Write unit tests for position calculation with different scroll positions
   - Create tests for viewport boundary edge cases
   - Add tests for placement direction selection logic

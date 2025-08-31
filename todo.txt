@@ -3,5 +3,6 @@
 - [x] Import not importing watchlist
 - Status on about page
 - Loading state when adding watchlist item
-- Component library
+- [x] Component library
 - Maybe improve import so that new anime go to end of watchlist
+- Dark mode

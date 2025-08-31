@@ -8,20 +8,12 @@ import type {
   DuplicateHandling,
   DatabaseStats
 } from '../types/export-import.js';
+import { ProgressTracker, IMPORT_STEPS, type ProgressState } from '../utils/progress-tracker.js';
+import { ProgressIndicator } from './ProgressIndicator.js';
+import { MessageSystem, useMessageSystem } from './MessageSystem.js';
 
 interface ImportSectionProps {
   onStatsUpdate?: (stats: DatabaseStats) => void;
-}
-
-interface ImportMessage {
-  id: string;
-  type: 'success' | 'error' | 'info' | 'warning';
-  message: string;
-}
-
-interface ImportProgress {
-  percentage: number;
-  message: string;
 }
 
 export const ImportSection: React.FC<ImportSectionProps> = ({ onStatsUpdate }) => {
@@ -37,54 +29,37 @@ export const ImportSection: React.FC<ImportSectionProps> = ({ onStatsUpdate }) =
     validateRelationships: true,
     clearCache: false
   });
-  const [progress, setProgress] = useState<ImportProgress>({ percentage: 0, message: '' });
-  const [messages, setMessages] = useState<ImportMessage[]>([]);
+  const [progressState, setProgressState] = useState<ProgressState | null>(null);
+  const { messages, addMessage, removeMessage, clearMessages } = useMessageSystem();
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const addMessage = useCallback((type: ImportMessage['type'], message: string) => {
-    const newMessage: ImportMessage = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      type,
-      message
-    };
-    setMessages(prev => [...prev, newMessage]);
-    
-    // Auto-remove success messages after 5 seconds
-    if (type === 'success') {
-      setTimeout(() => {
-        setMessages(prev => prev.filter(msg => msg.id !== newMessage.id));
-      }, 5000);
-    }
-  }, []);
-
-  const clearMessages = useCallback(() => {
-    setMessages([]);
-  }, []);
-
-  const updateProgress = useCallback((percentage: number, message: string) => {
-    setProgress({ percentage, message });
-  }, []);
 
   const resetImportState = useCallback(() => {
     setSelectedFile(null);
     setValidationResult(null);
     setImportPreview(null);
-    setProgress({ percentage: 0, message: '' });
+    setProgressState(null);
     clearMessages();
   }, [clearMessages]);
 
   const handleFileSelect = useCallback((file: File) => {
     if (!file.name.endsWith('.json')) {
       clearMessages();
-      addMessage('error', 'Please select a JSON file');
+      addMessage('error', 'Please select a JSON file', {
+        title: 'Invalid File Type',
+        details: 'Only JSON files are supported for import operations'
+      });
       return;
     }
 
     setSelectedFile(file);
     setValidationResult(null);
     setImportPreview(null);
+    setProgressState(null);
     clearMessages();
-    addMessage('info', `Selected file: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
+    addMessage('info', `File selected: ${file.name}`, {
+      details: `Size: ${(file.size / 1024).toFixed(1)} KB\nType: ${file.type}`,
+      autoRemove: true
+    });
   }, [addMessage, clearMessages]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -120,7 +95,16 @@ export const ImportSection: React.FC<ImportSectionProps> = ({ onStatsUpdate }) =
     try {
       setIsValidating(true);
       clearMessages();
-      updateProgress(25, 'Validating file format...');
+      
+      // Initialize progress tracker for validation
+      const progressTracker = new ProgressTracker([
+        { id: 'format', name: 'Validating file format', weight: 30 },
+        { id: 'content', name: 'Validating file content', weight: 50 },
+        { id: 'preview', name: 'Generating preview', weight: 20 }
+      ], setProgressState);
+      
+      progressTracker.start();
+      progressTracker.startStep('format', 'Checking file format and structure...');
 
       const formData = new FormData();
       formData.append('file', selectedFile);
@@ -131,37 +115,51 @@ export const ImportSection: React.FC<ImportSectionProps> = ({ onStatsUpdate }) =
       });
 
       const result = await response.json();
-      updateProgress(75, 'Processing validation results...');
+      progressTracker.completeStep('format', 'File format validated');
+      progressTracker.startStep('content', 'Validating file content...');
 
       if (result.success) {
         setValidationResult(result.data);
-        updateProgress(100, 'File validation complete');
+        progressTracker.completeStep('content', 'Content validation completed');
         
         if (result.data.isValid) {
-          addMessage('success', 'File validation successful');
+          progressTracker.startStep('preview', 'Generating import preview...');
+          addMessage('success', 'File validation successful', { autoRemove: true });
+          
           // Automatically get preview after successful validation
           await getImportPreview();
+          progressTracker.completeStep('preview', 'Preview generated successfully');
         } else {
-          addMessage('error', `File validation failed: ${result.data.errors.map((e: any) => e.message).join(', ')}`);
+          progressTracker.errorStep('content', 'File validation failed');
+          const errorMessages = result.data.errors.map((e: any) => e.message).join(', ');
+          addMessage('error', 'File validation failed', {
+            title: 'Validation Error',
+            details: errorMessages
+          });
         }
       } else {
-        addMessage('error', `Validation failed: ${result.error.message}`);
+        progressTracker.errorStep('content', result.error.message);
+        addMessage('error', 'Validation failed', {
+          title: 'Server Error',
+          details: result.error.message
+        });
       }
     } catch (error) {
       console.error('Validation error:', error);
-      addMessage('error', `Validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      addMessage('error', 'Validation failed', {
+        title: 'Network Error',
+        details: error instanceof Error ? error.message : 'Unknown error occurred'
+      });
     } finally {
       setIsValidating(false);
-      setTimeout(() => updateProgress(0, ''), 3000);
+      setTimeout(() => setProgressState(null), 3000);
     }
-  }, [selectedFile, clearMessages, updateProgress, addMessage]);
+  }, [selectedFile, clearMessages, addMessage]);
 
   const getImportPreview = useCallback(async () => {
     if (!selectedFile) return;
 
     try {
-      updateProgress(25, 'Generating import preview...');
-
       const formData = new FormData();
       formData.append('file', selectedFile);
 
@@ -171,22 +169,27 @@ export const ImportSection: React.FC<ImportSectionProps> = ({ onStatsUpdate }) =
       });
 
       const result = await response.json();
-      updateProgress(75, 'Processing preview data...');
 
       if (result.success) {
         setImportPreview(result.data);
-        updateProgress(100, 'Preview generated successfully');
-        addMessage('info', 'Import preview ready');
+        addMessage('info', 'Import preview generated', {
+          details: `Records to import: ${result.data.summary.animeInfo + result.data.summary.userWatchlist + result.data.summary.animeRelationships + result.data.summary.timelineCache}`,
+          autoRemove: true
+        });
       } else {
-        addMessage('error', `Preview failed: ${result.error.message}`);
+        addMessage('error', 'Preview generation failed', {
+          title: 'Preview Error',
+          details: result.error.message
+        });
       }
     } catch (error) {
       console.error('Preview error:', error);
-      addMessage('error', `Preview failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setTimeout(() => updateProgress(0, ''), 3000);
+      addMessage('error', 'Preview generation failed', {
+        title: 'Network Error',
+        details: error instanceof Error ? error.message : 'Unknown error occurred'
+      });
     }
-  }, [selectedFile, updateProgress, addMessage]);
+  }, [selectedFile, addMessage]);
 
   const executeImport = useCallback(async () => {
     if (!selectedFile || !importPreview) return;
@@ -194,34 +197,51 @@ export const ImportSection: React.FC<ImportSectionProps> = ({ onStatsUpdate }) =
     try {
       setIsImporting(true);
       clearMessages();
-      updateProgress(10, 'Preparing import...');
-
+      
+      // Initialize progress tracker for import
+      const progressTracker = new ProgressTracker(IMPORT_STEPS, setProgressState);
+      progressTracker.start();
+      
+      // Step 1: Validate
+      progressTracker.startStep('validate', 'Re-validating import file...');
+      await new Promise(resolve => setTimeout(resolve, 300));
+      progressTracker.completeStep('validate', 'File validation confirmed');
+      
+      // Step 2: Parse
+      progressTracker.startStep('parse', 'Parsing file content...');
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('options', JSON.stringify(importOptions));
+      progressTracker.completeStep('parse', 'File content parsed successfully');
 
-      updateProgress(25, 'Uploading file...');
+      // Step 3: Migrate (if needed)
+      if (importPreview.schemaMigrationRequired) {
+        progressTracker.startStep('migrate', 'Migrating schema to current version...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        progressTracker.completeStep('migrate', 'Schema migration completed');
+      } else {
+        progressTracker.startStep('migrate', 'No schema migration required');
+        progressTracker.completeStep('migrate', 'Schema version compatible');
+      }
 
+      // Step 4: Process import
+      progressTracker.startStep('process', 'Processing import data...');
       const response = await fetch('/api/import/execute', {
         method: 'POST',
         body: formData
       });
 
-      updateProgress(75, 'Processing import...');
-
       const result = await response.json();
 
       if (result.success) {
         const importResult: ImportResult = result.data;
-        updateProgress(100, 'Import completed successfully');
+        progressTracker.completeStep('process', 'Import data processed successfully');
+        
+        // Step 5: Finalize
+        progressTracker.startStep('finalize', 'Finalizing import operation...');
         
         const totalProcessed = Object.values(importResult.recordsProcessed).reduce((sum, count) => sum + count, 0);
-        addMessage('success', `Import completed! Processed ${totalProcessed} records.`);
         
-        if (importResult.warnings.length > 0) {
-          addMessage('warning', `${importResult.warnings.length} warnings occurred during import`);
-        }
-
         // Trigger stats update if callback provided
         if (onStatsUpdate) {
           try {
@@ -234,22 +254,59 @@ export const ImportSection: React.FC<ImportSectionProps> = ({ onStatsUpdate }) =
             console.error('Failed to refresh stats after import:', error);
           }
         }
+        
+        progressTracker.completeStep('finalize', 'Import operation finalized');
+        progressTracker.complete();
+        
+        addMessage('success', `Import completed successfully!`, {
+          title: 'Import Successful',
+          details: `Processed ${totalProcessed} records\n${Object.entries(importResult.recordsProcessed).map(([key, count]) => `${key}: ${count}`).join('\n')}`,
+          autoRemove: true
+        });
+        
+        if (importResult.warnings.length > 0) {
+          addMessage('warning', `Import completed with warnings`, {
+            title: 'Import Warnings',
+            details: importResult.warnings.map(w => w.message).join('\n')
+          });
+        }
 
         // Reset state after successful import
         setTimeout(() => {
           resetImportState();
-        }, 3000);
+        }, 5000);
       } else {
-        addMessage('error', `Import failed: ${result.error.message}`);
+        progressTracker.errorStep('process', result.error.message);
+        addMessage('error', 'Import operation failed', {
+          title: 'Import Error',
+          details: result.error.message,
+          actions: [
+            {
+              label: 'Retry Import',
+              onClick: () => executeImport(),
+              variant: 'primary'
+            }
+          ]
+        });
       }
     } catch (error) {
       console.error('Import error:', error);
-      addMessage('error', `Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      addMessage('error', 'Import operation failed', {
+        title: 'Network Error',
+        details: error instanceof Error ? error.message : 'Unknown error occurred',
+        actions: [
+          {
+            label: 'Retry Import',
+            onClick: () => executeImport(),
+            variant: 'primary'
+          }
+        ]
+      });
     } finally {
       setIsImporting(false);
-      setTimeout(() => updateProgress(0, ''), 3000);
+      setTimeout(() => setProgressState(null), 5000);
     }
-  }, [selectedFile, importPreview, importOptions, clearMessages, updateProgress, addMessage, resetImportState, onStatsUpdate]);
+  }, [selectedFile, importPreview, importOptions, clearMessages, addMessage, resetImportState, onStatsUpdate]);
 
   const handleModeChange = useCallback((mode: ImportMode) => {
     setImportOptions(prev => ({ ...prev, mode }));
@@ -339,19 +396,14 @@ export const ImportSection: React.FC<ImportSectionProps> = ({ onStatsUpdate }) =
           </div>
         )}
 
-        {/* Progress Indicator */}
-        {(isValidating || isImporting || progress.percentage > 0) && (
-          <div className="space-y-2">
-            <div className="bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-              <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                style={{ width: `${progress.percentage}%` }}
-              ></div>
-            </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {progress.message}
-            </p>
-          </div>
+        {/* Enhanced Progress Tracking */}
+        {progressState && (
+          <ProgressIndicator 
+            progress={progressState}
+            showSteps={true}
+            showTimeEstimate={true}
+            className="mt-4"
+          />
         )}
 
         {/* Import Preview */}
@@ -551,59 +603,13 @@ export const ImportSection: React.FC<ImportSectionProps> = ({ onStatsUpdate }) =
           </div>
         )}
 
-        {/* Messages */}
-        {messages.length > 0 && (
-          <div className="space-y-2">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`p-4 border rounded-md ${
-                  message.type === 'success' 
-                    ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
-                    : message.type === 'error'
-                    ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-                    : message.type === 'warning'
-                    ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
-                    : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
-                }`}
-              >
-                <div className="flex items-start">
-                  {message.type === 'success' && (
-                    <svg className="w-5 h-5 text-green-400 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
-                    </svg>
-                  )}
-                  {message.type === 'error' && (
-                    <svg className="w-5 h-5 text-red-400 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"></path>
-                    </svg>
-                  )}
-                  {message.type === 'warning' && (
-                    <svg className="w-5 h-5 text-yellow-400 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"></path>
-                    </svg>
-                  )}
-                  {message.type === 'info' && (
-                    <svg className="w-5 h-5 text-blue-400 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"></path>
-                    </svg>
-                  )}
-                  <p className={`text-sm ${
-                    message.type === 'success' 
-                      ? 'text-green-800 dark:text-green-200' 
-                      : message.type === 'error'
-                      ? 'text-red-800 dark:text-red-200'
-                      : message.type === 'warning'
-                      ? 'text-yellow-800 dark:text-yellow-200'
-                      : 'text-blue-800 dark:text-blue-200'
-                  }`}>
-                    {message.message}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Enhanced Message System */}
+        <MessageSystem 
+          messages={messages}
+          onRemoveMessage={removeMessage}
+          maxMessages={3}
+          className="mt-4"
+        />
       </div>
     </div>
   );

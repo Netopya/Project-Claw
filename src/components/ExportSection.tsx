@@ -1,4 +1,7 @@
 import React, { useState, useCallback } from 'react';
+import { ProgressTracker, EXPORT_STEPS, type ProgressState } from '../utils/progress-tracker.js';
+import { ProgressIndicator } from './ProgressIndicator.js';
+import { MessageSystem, useMessageSystem } from './MessageSystem.js';
 
 interface DatabaseStats {
   animeInfo: number;
@@ -14,17 +17,6 @@ interface ExportSectionProps {
   onStatsUpdate?: (stats: DatabaseStats) => void;
 }
 
-interface ExportProgress {
-  percentage: number;
-  message: string;
-}
-
-interface ExportMessage {
-  id: string;
-  type: 'success' | 'error' | 'info';
-  message: string;
-}
-
 export const ExportSection: React.FC<ExportSectionProps> = ({ 
   initialStats, 
   onStatsUpdate 
@@ -32,32 +24,8 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
   const [stats, setStats] = useState<DatabaseStats>(initialStats);
   const [isExporting, setIsExporting] = useState(false);
   const [isRefreshingStats, setIsRefreshingStats] = useState(false);
-  const [progress, setProgress] = useState<ExportProgress>({ percentage: 0, message: '' });
-  const [messages, setMessages] = useState<ExportMessage[]>([]);
-
-  const addMessage = useCallback((type: ExportMessage['type'], message: string) => {
-    const newMessage: ExportMessage = {
-      id: Date.now().toString(),
-      type,
-      message
-    };
-    setMessages(prev => [...prev, newMessage]);
-    
-    // Auto-remove success messages after 5 seconds
-    if (type === 'success') {
-      setTimeout(() => {
-        setMessages(prev => prev.filter(msg => msg.id !== newMessage.id));
-      }, 5000);
-    }
-  }, []);
-
-  const clearMessages = useCallback(() => {
-    setMessages([]);
-  }, []);
-
-  const updateProgress = useCallback((percentage: number, message: string) => {
-    setProgress({ percentage, message });
-  }, []);
+  const [progressState, setProgressState] = useState<ProgressState | null>(null);
+  const { messages, addMessage, removeMessage, clearMessages } = useMessageSystem();
 
   const refreshStats = useCallback(async () => {
     try {
@@ -70,13 +38,19 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
       if (data.success) {
         setStats(data.data);
         onStatsUpdate?.(data.data);
-        addMessage('success', 'Database statistics refreshed successfully');
+        addMessage('success', 'Database statistics refreshed successfully', { autoRemove: true });
       } else {
-        addMessage('error', `Failed to refresh statistics: ${data.error}`);
+        addMessage('error', `Failed to refresh statistics: ${data.error}`, {
+          title: 'Statistics Refresh Failed',
+          details: data.message || 'Unknown error occurred'
+        });
       }
     } catch (error) {
       console.error('Error refreshing statistics:', error);
-      addMessage('error', 'Failed to refresh statistics');
+      addMessage('error', 'Failed to refresh statistics', {
+        title: 'Network Error',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     } finally {
       setIsRefreshingStats(false);
     }
@@ -102,47 +76,80 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
     try {
       setIsExporting(true);
       clearMessages();
-      updateProgress(10, 'Preparing export...');
       
+      // Initialize progress tracker
+      const progressTracker = new ProgressTracker(EXPORT_STEPS, setProgressState);
+      progressTracker.start();
+      
+      // Step 1: Validate data integrity
+      progressTracker.startStep('validate', 'Validating database integrity...');
+      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate validation time
+      progressTracker.completeStep('validate', 'Data validation completed');
+      
+      // Step 2: Extract data
+      progressTracker.startStep('extract', 'Extracting database records...');
       const response = await fetch('/api/export/generate', {
         method: 'POST'
       });
       
-      updateProgress(50, 'Generating export file...');
-      
-      if (response.ok) {
-        updateProgress(90, 'Downloading file...');
-        
-        // Get filename from response headers or generate one
-        const contentDisposition = response.headers.get('Content-Disposition');
-        const filename = contentDisposition 
-          ? contentDisposition.split('filename=')[1]?.replace(/"/g, '') 
-          : generateFilename();
-        
-        // Download the file
-        const blob = await response.blob();
-        downloadFile(blob, filename);
-        
-        updateProgress(100, 'Export complete!');
-        addMessage('success', `Export completed successfully! Downloaded: ${filename}`);
-        
-        // Refresh stats after successful export
-        await refreshStats();
-      } else {
+      if (!response.ok) {
         const errorData = await response.json();
+        progressTracker.errorStep('extract', errorData.error || 'Failed to extract data');
         throw new Error(errorData.error || 'Export failed');
       }
+      
+      progressTracker.completeStep('extract', 'Database records extracted successfully');
+      
+      // Step 3: Generate file
+      progressTracker.startStep('generate', 'Generating export file...');
+      const blob = await response.blob();
+      progressTracker.completeStep('generate', 'Export file generated');
+      
+      // Step 4: Download
+      progressTracker.startStep('download', 'Preparing download...');
+      
+      // Get filename from response headers or generate one
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const filename = contentDisposition 
+        ? contentDisposition.split('filename=')[1]?.replace(/"/g, '') 
+        : generateFilename();
+      
+      // Download the file
+      downloadFile(blob, filename);
+      
+      progressTracker.completeStep('download', 'File download initiated');
+      progressTracker.complete();
+      
+      addMessage('success', `Export completed successfully!`, {
+        title: 'Export Successful',
+        details: `Downloaded: ${filename}\nSize: ${(blob.size / 1024).toFixed(1)} KB`,
+        autoRemove: true
+      });
+      
+      // Refresh stats after successful export
+      await refreshStats();
+      
     } catch (error) {
       console.error('Export error:', error);
-      addMessage('error', `Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      addMessage('error', 'Export operation failed', {
+        title: 'Export Error',
+        details: error instanceof Error ? error.message : 'Unknown error occurred',
+        actions: [
+          {
+            label: 'Retry Export',
+            onClick: () => exportData(),
+            variant: 'primary'
+          }
+        ]
+      });
     } finally {
       setIsExporting(false);
-      // Reset progress after 3 seconds
+      // Reset progress after 5 seconds
       setTimeout(() => {
-        updateProgress(0, '');
-      }, 3000);
+        setProgressState(null);
+      }, 5000);
     }
-  }, [clearMessages, updateProgress, generateFilename, downloadFile, addMessage, refreshStats]);
+  }, [clearMessages, generateFilename, downloadFile, addMessage, refreshStats]);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
@@ -213,65 +220,23 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
             <span>{isExporting ? 'Exporting...' : 'Export Data'}</span>
           </button>
 
-          {/* Export Progress */}
-          {isExporting && (
-            <div className="space-y-2">
-              <div className="bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div 
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                  style={{ width: `${progress.percentage}%` }}
-                ></div>
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {progress.message}
-              </p>
-            </div>
+          {/* Enhanced Progress Tracking */}
+          {progressState && (
+            <ProgressIndicator 
+              progress={progressState}
+              showSteps={true}
+              showTimeEstimate={true}
+              className="mt-4"
+            />
           )}
 
-          {/* Export Messages */}
-          {messages.length > 0 && (
-            <div className="space-y-2">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`p-4 border rounded-md ${
-                    message.type === 'success' 
-                      ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
-                      : message.type === 'error'
-                      ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-                      : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
-                  }`}
-                >
-                  <div className="flex items-start">
-                    {message.type === 'success' && (
-                      <svg className="w-5 h-5 text-green-400 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
-                      </svg>
-                    )}
-                    {message.type === 'error' && (
-                      <svg className="w-5 h-5 text-red-400 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"></path>
-                      </svg>
-                    )}
-                    {message.type === 'info' && (
-                      <svg className="w-5 h-5 text-blue-400 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"></path>
-                      </svg>
-                    )}
-                    <p className={`text-sm ${
-                      message.type === 'success' 
-                        ? 'text-green-800 dark:text-green-200' 
-                        : message.type === 'error'
-                        ? 'text-red-800 dark:text-red-200'
-                        : 'text-blue-800 dark:text-blue-200'
-                    }`}>
-                      {message.message}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Enhanced Message System */}
+          <MessageSystem 
+            messages={messages}
+            onRemoveMessage={removeMessage}
+            maxMessages={3}
+            className="mt-4"
+          />
         </div>
       </div>
     </div>

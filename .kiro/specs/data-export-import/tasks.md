@@ -177,7 +177,13 @@
   - Write tests for error scenarios and recovery flows
   - _Requirements: 2.4, 4.3, 4.5, 6.4_
 
-- [ ] 14. Create integration tests for complete workflows
+- [x] 14. Create integration tests for complete workflows
+
+
+
+
+
+
   - Write end-to-end tests for full export-import cycle
   - Test schema migration scenarios with different versions
   - Verify data integrity after import operations

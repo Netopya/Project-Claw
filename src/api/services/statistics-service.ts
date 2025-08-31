@@ -17,7 +17,10 @@ export class StatisticsService {
    */
   async getDatabaseStatistics(): Promise<DatabaseStats> {
     try {
+      console.log('Starting database statistics collection...');
+      
       // Count records in each table using efficient SQL COUNT queries
+      console.log('Executing parallel table count queries...');
       const [
         animeInfoCount,
         userWatchlistCount,
@@ -30,9 +33,10 @@ export class StatisticsService {
         this.getTableCount('timeline_cache')
       ]);
 
+      console.log('All table counts retrieved successfully');
       const total = animeInfoCount + userWatchlistCount + animeRelationshipsCount + timelineCacheCount;
 
-      return {
+      const stats = {
         animeInfo: animeInfoCount,
         userWatchlist: userWatchlistCount,
         animeRelationships: animeRelationshipsCount,
@@ -40,9 +44,17 @@ export class StatisticsService {
         total,
         lastUpdated: new Date().toISOString()
       };
-    } catch (error) {
+      
+      console.log('Database statistics:', stats);
+      return stats;
+    } catch (error: any) {
       console.error('Error getting database statistics:', error);
-      throw new Error('Failed to retrieve database statistics');
+      console.error('Error details:', {
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name
+      });
+      throw new Error(`Failed to retrieve database statistics: ${error?.message}`);
     }
   }
 
@@ -51,27 +63,45 @@ export class StatisticsService {
    */
   private async getTableCount(tableName: string): Promise<number> {
     try {
-      let result;
+      console.log(`Getting count for table: ${tableName}`);
+      let result: any[];
+      
       switch (tableName) {
         case 'anime_info':
-          result = await db.select({ count: sql<number>`count(*)` }).from(animeInfo);
+          console.log('Querying anime_info table...');
+          result = await db.select({ count: sql`count(*)` }).from(animeInfo);
+          console.log('anime_info result:', result);
           break;
         case 'user_watchlist':
-          result = await db.select({ count: sql<number>`count(*)` }).from(userWatchlist);
+          console.log('Querying user_watchlist table...');
+          result = await db.select({ count: sql`count(*)` }).from(userWatchlist);
+          console.log('user_watchlist result:', result);
           break;
         case 'anime_relationships':
-          result = await db.select({ count: sql<number>`count(*)` }).from(animeRelationships);
+          console.log('Querying anime_relationships table...');
+          result = await db.select({ count: sql`count(*)` }).from(animeRelationships);
+          console.log('anime_relationships result:', result);
           break;
         case 'timeline_cache':
-          result = await db.select({ count: sql<number>`count(*)` }).from(timelineCache);
+          console.log('Querying timeline_cache table...');
+          result = await db.select({ count: sql`count(*)` }).from(timelineCache);
+          console.log('timeline_cache result:', result);
           break;
         default:
           throw new Error(`Unknown table: ${tableName}`);
       }
-      return result[0]?.count || 0;
-    } catch (error) {
+      
+      const count = Number(result[0]?.count) || 0;
+      console.log(`Table ${tableName} count: ${count}`);
+      return count;
+    } catch (error: any) {
       console.error(`Error counting records in table ${tableName}:`, error);
-      throw new Error(`Failed to count records in ${tableName}`);
+      console.error('Error details:', {
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name
+      });
+      throw new Error(`Failed to count records in ${tableName}: ${error?.message}`);
     }
   }
 
@@ -91,28 +121,28 @@ export class StatisticsService {
       const watchlistByStatusResult = await db
         .select({
           watchStatus: userWatchlist.watchStatus,
-          count: sql<number>`count(*)`
+          count: sql`count(*)`
         })
         .from(userWatchlist)
         .groupBy(userWatchlist.watchStatus);
 
       const watchlistByStatus: Record<string, number> = {};
       for (const row of watchlistByStatusResult) {
-        watchlistByStatus[row.watchStatus] = row.count;
+        watchlistByStatus[row.watchStatus] = Number(row.count);
       }
 
       // Get relationships breakdown by type
       const relationshipsByTypeResult = await db
         .select({
           relationshipType: animeRelationships.relationshipType,
-          count: sql<number>`count(*)`
+          count: sql`count(*)`
         })
         .from(animeRelationships)
         .groupBy(animeRelationships.relationshipType);
 
       const relationshipsByType: Record<string, number> = {};
       for (const row of relationshipsByTypeResult) {
-        relationshipsByType[row.relationshipType] = row.count;
+        relationshipsByType[row.relationshipType] = Number(row.count);
       }
 
       return {
@@ -122,7 +152,7 @@ export class StatisticsService {
           relationshipsByType
         }
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error getting detailed statistics:', error);
       throw new Error('Failed to retrieve detailed statistics');
     }
@@ -148,10 +178,10 @@ export class StatisticsService {
         drizzleAnimeRelationshipsCount,
         drizzleTimelineCacheCount
       ] = await Promise.all([
-        db.select({ count: sql<number>`count(*)` }).from(animeInfo).then(r => r[0].count),
-        db.select({ count: sql<number>`count(*)` }).from(userWatchlist).then(r => r[0].count),
-        db.select({ count: sql<number>`count(*)` }).from(animeRelationships).then(r => r[0].count),
-        db.select({ count: sql<number>`count(*)` }).from(timelineCache).then(r => r[0].count)
+        db.select({ count: sql`count(*)` }).from(animeInfo).then((r: any) => Number(r[0].count)),
+        db.select({ count: sql`count(*)` }).from(userWatchlist).then((r: any) => Number(r[0].count)),
+        db.select({ count: sql`count(*)` }).from(animeRelationships).then((r: any) => Number(r[0].count)),
+        db.select({ count: sql`count(*)` }).from(timelineCache).then((r: any) => Number(r[0].count))
       ]);
 
       // Compare counts
@@ -172,7 +202,7 @@ export class StatisticsService {
         isAccurate: discrepancies.length === 0,
         discrepancies
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error validating statistics accuracy:', error);
       throw new Error('Failed to validate statistics accuracy');
     }

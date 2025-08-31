@@ -18,6 +18,7 @@ import {
   ValidationError,
   ERROR_CODES 
 } from '../utils/export-import-error-handler.js';
+import { apiFetch } from '../utils/api-config.js';
 
 interface ImportSectionProps {
   onStatsUpdate?: (stats: DatabaseStats) => void;
@@ -117,7 +118,7 @@ export const ImportSection: React.FC<ImportSectionProps> = ({ onStatsUpdate }) =
       formData.append('file', selectedFile);
 
       const response = await retryOperation(async () => {
-        const res = await fetch('/api/import/validate', {
+        const res = await apiFetch('/api/import/validate', {
           method: 'POST',
           body: formData
         });
@@ -223,7 +224,7 @@ export const ImportSection: React.FC<ImportSectionProps> = ({ onStatsUpdate }) =
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const response = await fetch('/api/import/preview', {
+      const response = await apiFetch('/api/import/preview', {
         method: 'POST',
         body: formData
       });
@@ -288,7 +289,7 @@ export const ImportSection: React.FC<ImportSectionProps> = ({ onStatsUpdate }) =
       progressTracker.startStep('process', 'Processing import data...');
       
       const response = await retryOperation(async () => {
-        const res = await fetch('/api/import/execute', {
+        const res = await apiFetch('/api/import/execute', {
           method: 'POST',
           body: formData
         });
@@ -331,7 +332,7 @@ export const ImportSection: React.FC<ImportSectionProps> = ({ onStatsUpdate }) =
         // Trigger stats update if callback provided
         if (onStatsUpdate) {
           try {
-            const statsResponse = await fetch('/api/export/stats');
+            const statsResponse = await apiFetch('/api/export/stats');
             const statsData = await statsResponse.json();
             if (statsData.success) {
               onStatsUpdate(statsData.data);

@@ -24,7 +24,7 @@ export const ExportImportManager: React.FC<ExportImportManagerProps> = ({ initia
   }, []);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 mt-8">
       <ExportImportErrorBoundary onError={handleError}>
         <ExportSection 
           initialStats={stats} 

@@ -78,6 +78,23 @@ interface MessageCardProps {
 }
 
 const MessageCard: React.FC<MessageCardProps> = ({ message, onDismiss }) => {
+  const getActionButtonStyles = (type: Message['type'], variant: 'primary' | 'secondary') => {
+    if (variant === 'primary') {
+      switch (type) {
+        case 'success':
+          return 'bg-green-600 hover:bg-green-700 focus:ring-green-500 text-white shadow-sm';
+        case 'error':
+          return 'bg-red-600 hover:bg-red-700 focus:ring-red-500 text-white shadow-sm';
+        case 'warning':
+          return 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500 text-white shadow-sm';
+        case 'info':
+        default:
+          return 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 text-white shadow-sm';
+      }
+    }
+    return ''; // Secondary buttons use the existing styles
+  };
+
   const getMessageStyles = () => {
     switch (message.type) {
       case 'success':
@@ -183,9 +200,9 @@ const MessageCard: React.FC<MessageCardProps> = ({ message, onDismiss }) => {
                 <button
                   key={index}
                   onClick={action.onClick}
-                  className={`text-xs font-medium px-3 py-1 rounded ${
+                  className={`text-xs font-medium px-3 py-1 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                     action.variant === 'primary'
-                      ? `bg-current text-white ${styles.button}`
+                      ? getActionButtonStyles(message.type, 'primary')
                       : `${styles.button} hover:underline`
                   }`}
                 >

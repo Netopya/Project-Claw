@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { ProgressTracker, EXPORT_STEPS, type ProgressState } from '../utils/progress-tracker.js';
 import { ProgressIndicator } from './ProgressIndicator.js';
 import { MessageSystem, useMessageSystem } from './MessageSystem.js';
@@ -8,6 +8,19 @@ import {
   ExportError, 
   ERROR_CODES 
 } from '../utils/export-import-error-handler.js';
+import { apiFetch } from '../utils/api-config.js';
+
+// Client-only timestamp component to avoid hydration mismatch
+const ClientOnlyTimestamp: React.FC<{ timestamp: string }> = ({ timestamp }) => {
+  const [formattedTime, setFormattedTime] = useState<string>('');
+
+  useEffect(() => {
+    // Only format on client side to avoid hydration mismatch
+    setFormattedTime(new Date(timestamp).toLocaleString());
+  }, [timestamp]);
+
+  return <span>{formattedTime || 'Loading...'}</span>;
+};
 
 interface DatabaseStats {
   animeInfo: number;
@@ -38,7 +51,7 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
       setIsRefreshingStats(true);
       clearMessages();
       
-      const response = await fetch('/api/export/stats');
+      const response = await apiFetch('/api/export/stats');
       const data = await response.json();
       
       if (data.success) {
@@ -100,7 +113,7 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
       const queryParams = useStreaming ? '' : `?stream=${useStreaming}`;
       
       const response = await retryOperation(async () => {
-        const res = await fetch(`${endpoint}${queryParams}`, {
+        const res = await apiFetch(`${endpoint}${queryParams}`, {
           method: 'POST'
         });
         
@@ -238,7 +251,7 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
 
       <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400 mb-6">
         <span>Total Records: <span className="font-medium">{stats.total.toLocaleString()}</span></span>
-        <span>Last Updated: {new Date(stats.lastUpdated).toLocaleString()}</span>
+        <span>Last Updated: <ClientOnlyTimestamp timestamp={stats.lastUpdated} /></span>
       </div>
 
       <div className="border-t border-gray-200 dark:border-gray-700 pt-6">

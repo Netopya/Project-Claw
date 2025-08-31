@@ -91,22 +91,38 @@ exportRoutes.post('/generate', async (c) => {
   try {
     const exportService = new ExportService();
     
-    // Generate export file
-    const exportBuffer = await exportService.generateExportFile();
+    // Check if we should use streaming based on query parameter
+    const useStreaming = c.req.query('stream') === 'true';
     
-    // Get metadata for response
-    const metadata = await exportService.getExportMetadata();
-    
-    // Generate filename with timestamp
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `project-claw-export-${timestamp}.json`;
-    
-    // Set appropriate headers for file download
-    c.header('Content-Type', 'application/json');
-    c.header('Content-Disposition', `attachment; filename="${filename}"`);
-    c.header('Content-Length', exportBuffer.length.toString());
-    
-    return c.body(exportBuffer);
+    if (useStreaming) {
+      // Use streaming export for large datasets
+      const exportStream = await exportService.generateStreamingExport();
+      
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `project-claw-export-${timestamp}.json`;
+      
+      // Set appropriate headers for streaming download
+      c.header('Content-Type', 'application/json');
+      c.header('Content-Disposition', `attachment; filename="${filename}"`);
+      c.header('Transfer-Encoding', 'chunked');
+      
+      return c.body(exportStream);
+    } else {
+      // Generate export file in memory
+      const exportBuffer = await exportService.generateExportFile();
+      
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `project-claw-export-${timestamp}.json`;
+      
+      // Set appropriate headers for file download
+      c.header('Content-Type', 'application/json');
+      c.header('Content-Disposition', `attachment; filename="${filename}"`);
+      c.header('Content-Length', exportBuffer.length.toString());
+      
+      return c.body(exportBuffer);
+    }
   } catch (error) {
     console.error('Error generating export file:', error);
     
@@ -150,6 +166,42 @@ exportRoutes.post('/generate', async (c) => {
         true
       );
     }
+    
+    return c.json({
+      success: false,
+      error: toApiError(exportError)
+    }, exportError.statusCode);
+  }
+});
+
+// POST /api/export/stream - Generate streaming export for large datasets
+exportRoutes.post('/stream', async (c) => {
+  try {
+    const exportService = new ExportService();
+    
+    // Generate streaming export
+    const exportStream = await exportService.generateStreamingExport();
+    
+    // Generate filename with timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `project-claw-export-${timestamp}.json`;
+    
+    // Set appropriate headers for streaming download
+    c.header('Content-Type', 'application/json');
+    c.header('Content-Disposition', `attachment; filename="${filename}"`);
+    c.header('Transfer-Encoding', 'chunked');
+    c.header('Cache-Control', 'no-cache');
+    
+    return c.body(exportStream);
+  } catch (error) {
+    console.error('Error generating streaming export:', error);
+    
+    const exportError = new ExportError(
+      'Failed to generate streaming export',
+      ERROR_CODES.EXPORT_FILE_GENERATION_FAILED,
+      500,
+      true
+    );
     
     return c.json({
       success: false,

@@ -11,6 +11,8 @@ import type {
 
 export class ImportExecutionService {
   private readonly sqlite = getSQLiteConnection();
+  private readonly BATCH_SIZE = 500; // Smaller batch size for imports to avoid memory issues
+  private readonly LARGE_DATASET_THRESHOLD = 2000; // Use batch processing for datasets larger than this
 
   /**
    * Execute import operation with transaction management
@@ -135,7 +137,7 @@ export class ImportExecutionService {
   }
 
   /**
-   * Import anime info records
+   * Import anime info records with batch processing optimization
    */
   private importAnimeInfo(
     records: ExportData['data']['animeInfo'], 
@@ -144,6 +146,13 @@ export class ImportExecutionService {
     warnings: ImportWarning[]
   ): number {
     if (records.length === 0) return 0;
+
+    console.log(`Importing ${records.length} anime info records...`);
+
+    // Use batch processing for large datasets
+    if (records.length > this.LARGE_DATASET_THRESHOLD) {
+      return this.importAnimeInfoBatch(records, options, errors, warnings);
+    }
 
     let processedCount = 0;
     const insertStmt = this.sqlite.prepare(`
@@ -245,7 +254,139 @@ export class ImportExecutionService {
   }
 
   /**
-   * Import user watchlist records
+   * Import anime info records in batches for better performance
+   */
+  private importAnimeInfoBatch(
+    records: ExportData['data']['animeInfo'], 
+    options: ImportOptions,
+    errors: ImportError[],
+    warnings: ImportWarning[]
+  ): number {
+    console.log(`Using batch processing for ${records.length} anime info records...`);
+
+    let processedCount = 0;
+    
+    // Prepare batch insert statement
+    const insertStmt = this.sqlite.prepare(`
+      INSERT INTO anime_info (
+        mal_id, title, title_english, title_japanese, image_url, rating,
+        premiere_date, num_episodes, episode_duration, anime_type, status,
+        source, studios, genres, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const updateStmt = this.sqlite.prepare(`
+      UPDATE anime_info SET
+        title = ?, title_english = ?, title_japanese = ?, image_url = ?, rating = ?,
+        premiere_date = ?, num_episodes = ?, episode_duration = ?, anime_type = ?,
+        status = ?, source = ?, studios = ?, genres = ?, updated_at = ?
+      WHERE mal_id = ?
+    `);
+
+    // Get existing MAL IDs in batches to optimize lookups
+    const existingMalIds = new Set<number>();
+    if (options.mode === 'merge') {
+      const existing = this.sqlite.prepare('SELECT mal_id FROM anime_info').all() as { mal_id: number }[];
+      existing.forEach(row => existingMalIds.add(row.mal_id));
+    }
+
+    // Process records in batches
+    for (let i = 0; i < records.length; i += this.BATCH_SIZE) {
+      const batch = records.slice(i, i + this.BATCH_SIZE);
+      const batchTransaction = this.sqlite.transaction(() => {
+        let batchProcessed = 0;
+
+        for (const record of batch) {
+          try {
+            const exists = existingMalIds.has(record.malId);
+            
+            if (exists && options.mode === 'merge') {
+              if (options.handleDuplicates === 'skip') {
+                warnings.push({
+                  code: 'DUPLICATE_SKIPPED',
+                  message: `Skipped duplicate anime with MAL ID ${record.malId}`,
+                  table: 'animeInfo',
+                  recordId: record.id,
+                  details: { malId: record.malId }
+                });
+                continue;
+              } else if (options.handleDuplicates === 'update') {
+                updateStmt.run(
+                  record.title,
+                  record.titleEnglish,
+                  record.titleJapanese,
+                  record.imageUrl,
+                  record.rating,
+                  record.premiereDate,
+                  record.numEpisodes,
+                  record.episodeDuration,
+                  record.animeType,
+                  record.status,
+                  record.source,
+                  record.studios,
+                  record.genres,
+                  new Date().toISOString(),
+                  record.malId
+                );
+                batchProcessed++;
+              }
+            } else if (!exists) {
+              insertStmt.run(
+                record.malId,
+                record.title,
+                record.titleEnglish,
+                record.titleJapanese,
+                record.imageUrl,
+                record.rating,
+                record.premiereDate,
+                record.numEpisodes,
+                record.episodeDuration,
+                record.animeType,
+                record.status,
+                record.source,
+                record.studios,
+                record.genres,
+                record.createdAt || new Date().toISOString(),
+                record.updatedAt || new Date().toISOString()
+              );
+              existingMalIds.add(record.malId); // Update our cache
+              batchProcessed++;
+            }
+          } catch (error) {
+            errors.push({
+              code: 'ANIME_INFO_INSERT_ERROR',
+              message: `Failed to import anime info record: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              table: 'animeInfo',
+              recordId: record.id,
+              details: { malId: record.malId, title: record.title }
+            });
+          }
+        }
+
+        return batchProcessed;
+      });
+
+      try {
+        const batchResult = batchTransaction();
+        processedCount += batchResult;
+        console.log(`Processed anime info batch ${Math.floor(i / this.BATCH_SIZE) + 1}: ${batchResult} records (${processedCount}/${records.length} total)`);
+      } catch (error) {
+        console.error(`Error processing anime info batch ${Math.floor(i / this.BATCH_SIZE) + 1}:`, error);
+        errors.push({
+          code: 'BATCH_PROCESSING_ERROR',
+          message: `Failed to process anime info batch: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          table: 'animeInfo',
+          details: { batchStart: i, batchSize: batch.length }
+        });
+      }
+    }
+
+    console.log(`Completed batch import of anime info: ${processedCount} records processed`);
+    return processedCount;
+  }
+
+  /**
+   * Import user watchlist records with batch processing optimization
    */
   private importUserWatchlist(
     records: ExportData['data']['userWatchlist'],
@@ -254,6 +395,13 @@ export class ImportExecutionService {
     warnings: ImportWarning[]
   ): number {
     if (records.length === 0) return 0;
+
+    console.log(`Importing ${records.length} user watchlist records...`);
+
+    // Use batch processing for large datasets
+    if (records.length > this.LARGE_DATASET_THRESHOLD) {
+      return this.importUserWatchlistBatch(records, options, errors, warnings);
+    }
 
     let processedCount = 0;
     const insertStmt = this.sqlite.prepare(`
@@ -354,7 +502,142 @@ export class ImportExecutionService {
   }
 
   /**
-   * Import anime relationships records
+   * Import user watchlist records in batches for better performance
+   */
+  private importUserWatchlistBatch(
+    records: ExportData['data']['userWatchlist'],
+    options: ImportOptions,
+    errors: ImportError[],
+    warnings: ImportWarning[]
+  ): number {
+    console.log(`Using batch processing for ${records.length} user watchlist records...`);
+
+    let processedCount = 0;
+    
+    const insertStmt = this.sqlite.prepare(`
+      INSERT INTO user_watchlist (
+        anime_info_id, priority, watch_status, user_rating, notes, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const updateStmt = this.sqlite.prepare(`
+      UPDATE user_watchlist SET
+        priority = ?, watch_status = ?, user_rating = ?, notes = ?, updated_at = ?
+      WHERE anime_info_id = ?
+    `);
+
+    // Build anime_info_id mapping for efficient lookups
+    const animeInfoMapping = new Map<number, number>();
+    const existingWatchlist = new Set<number>();
+    
+    if (options.mode === 'merge') {
+      // Get all anime info mappings
+      const animeInfoRecords = this.sqlite.prepare('SELECT id, mal_id FROM anime_info').all() as { id: number, mal_id: number }[];
+      animeInfoRecords.forEach(row => animeInfoMapping.set(row.mal_id, row.id));
+      
+      // Get existing watchlist entries
+      const existingEntries = this.sqlite.prepare('SELECT anime_info_id FROM user_watchlist').all() as { anime_info_id: number }[];
+      existingEntries.forEach(row => existingWatchlist.add(row.anime_info_id));
+    }
+
+    // Process records in batches
+    for (let i = 0; i < records.length; i += this.BATCH_SIZE) {
+      const batch = records.slice(i, i + this.BATCH_SIZE);
+      const batchTransaction = this.sqlite.transaction(() => {
+        let batchProcessed = 0;
+
+        for (const record of batch) {
+          try {
+            let actualAnimeInfoId = record.animeInfoId;
+            
+            // Map to current database ID in merge mode
+            if (options.mode === 'merge') {
+              const mappedId = animeInfoMapping.get(record.animeInfoId);
+              if (mappedId) {
+                actualAnimeInfoId = mappedId;
+              } else {
+                errors.push({
+                  code: 'FOREIGN_KEY_VIOLATION',
+                  message: `Referenced anime_info_id ${record.animeInfoId} not found`,
+                  table: 'userWatchlist',
+                  recordId: record.id,
+                  details: { animeInfoId: record.animeInfoId }
+                });
+                continue;
+              }
+            }
+
+            const exists = existingWatchlist.has(actualAnimeInfoId);
+            
+            if (exists && options.mode === 'merge') {
+              if (options.handleDuplicates === 'skip') {
+                warnings.push({
+                  code: 'DUPLICATE_SKIPPED',
+                  message: `Skipped duplicate watchlist entry for anime_info_id ${actualAnimeInfoId}`,
+                  table: 'userWatchlist',
+                  recordId: record.id,
+                  details: { animeInfoId: actualAnimeInfoId }
+                });
+                continue;
+              } else if (options.handleDuplicates === 'update') {
+                updateStmt.run(
+                  record.priority,
+                  record.watchStatus,
+                  record.userRating,
+                  record.notes,
+                  new Date().toISOString(),
+                  actualAnimeInfoId
+                );
+                batchProcessed++;
+              }
+            } else if (!exists) {
+              insertStmt.run(
+                actualAnimeInfoId,
+                record.priority,
+                record.watchStatus,
+                record.userRating,
+                record.notes,
+                record.createdAt || new Date().toISOString(),
+                record.updatedAt || new Date().toISOString()
+              );
+              existingWatchlist.add(actualAnimeInfoId); // Update our cache
+              batchProcessed++;
+            }
+          } catch (error) {
+            errors.push({
+              code: 'WATCHLIST_INSERT_ERROR',
+              message: `Failed to import watchlist record: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              table: 'userWatchlist',
+              recordId: record.id,
+              details: { animeInfoId: record.animeInfoId }
+            });
+          }
+        }
+
+        return batchProcessed;
+      });
+
+      try {
+        const batchResult = batchTransaction();
+        processedCount += batchResult;
+        console.log(`Processed watchlist batch ${Math.floor(i / this.BATCH_SIZE) + 1}: ${batchResult} records (${processedCount}/${records.length} total)`);
+      } catch (error) {
+        console.error(`Error processing watchlist batch ${Math.floor(i / this.BATCH_SIZE) + 1}:`, error);
+        errors.push({
+          code: 'BATCH_PROCESSING_ERROR',
+          message: `Failed to process watchlist batch: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          table: 'userWatchlist',
+          details: { batchStart: i, batchSize: batch.length }
+        });
+      }
+    }
+
+    console.log(`Completed batch import of user watchlist: ${processedCount} records processed`);
+    return processedCount;
+  }
+
+  /**
+   * Import anime relationships records with batch processing optimization
    */
   private importAnimeRelationships(
     records: ExportData['data']['animeRelationships'],
@@ -363,6 +646,13 @@ export class ImportExecutionService {
     warnings: ImportWarning[]
   ): number {
     if (records.length === 0) return 0;
+
+    console.log(`Importing ${records.length} anime relationship records...`);
+
+    // Use batch processing for large datasets
+    if (records.length > this.LARGE_DATASET_THRESHOLD) {
+      return this.importAnimeRelationshipsBatch(records, options, errors, warnings);
+    }
 
     let processedCount = 0;
     const insertStmt = this.sqlite.prepare(`
@@ -457,7 +747,150 @@ export class ImportExecutionService {
   }
 
   /**
-   * Import timeline cache records
+   * Import anime relationships records in batches for better performance
+   */
+  private importAnimeRelationshipsBatch(
+    records: ExportData['data']['animeRelationships'],
+    options: ImportOptions,
+    errors: ImportError[],
+    warnings: ImportWarning[]
+  ): number {
+    console.log(`Using batch processing for ${records.length} anime relationship records...`);
+
+    let processedCount = 0;
+    
+    const insertStmt = this.sqlite.prepare(`
+      INSERT OR IGNORE INTO anime_relationships (
+        source_mal_id, target_mal_id, relationship_type, created_at
+      ) VALUES (?, ?, ?, ?)
+    `);
+
+    // Build validation sets for efficient lookups
+    const validMalIds = new Set<number>();
+    const existingRelationships = new Set<string>();
+    
+    if (options.validateRelationships || options.mode === 'merge') {
+      // Get all valid MAL IDs
+      const malIdRecords = this.sqlite.prepare('SELECT mal_id FROM anime_info').all() as { mal_id: number }[];
+      malIdRecords.forEach(row => validMalIds.add(row.mal_id));
+      
+      // Get existing relationships
+      if (options.mode === 'merge') {
+        const existingRecords = this.sqlite.prepare(`
+          SELECT source_mal_id, target_mal_id, relationship_type 
+          FROM anime_relationships
+        `).all() as { source_mal_id: number, target_mal_id: number, relationship_type: string }[];
+        
+        existingRecords.forEach(row => {
+          const key = `${row.source_mal_id}-${row.target_mal_id}-${row.relationship_type}`;
+          existingRelationships.add(key);
+        });
+      }
+    }
+
+    // Process records in batches
+    for (let i = 0; i < records.length; i += this.BATCH_SIZE) {
+      const batch = records.slice(i, i + this.BATCH_SIZE);
+      const batchTransaction = this.sqlite.transaction(() => {
+        let batchProcessed = 0;
+
+        for (const record of batch) {
+          try {
+            // Validate foreign key references
+            if (options.validateRelationships) {
+              if (!validMalIds.has(record.sourceMalId)) {
+                errors.push({
+                  code: 'FOREIGN_KEY_VIOLATION',
+                  message: `Source MAL ID ${record.sourceMalId} not found in anime_info`,
+                  table: 'animeRelationships',
+                  recordId: record.id,
+                  details: { sourceMalId: record.sourceMalId }
+                });
+                continue;
+              }
+              
+              if (!validMalIds.has(record.targetMalId)) {
+                errors.push({
+                  code: 'FOREIGN_KEY_VIOLATION',
+                  message: `Target MAL ID ${record.targetMalId} not found in anime_info`,
+                  table: 'animeRelationships',
+                  recordId: record.id,
+                  details: { targetMalId: record.targetMalId }
+                });
+                continue;
+              }
+            }
+
+            const relationshipKey = `${record.sourceMalId}-${record.targetMalId}-${record.relationshipType}`;
+            const exists = existingRelationships.has(relationshipKey);
+            
+            if (exists && options.mode === 'merge') {
+              if (options.handleDuplicates === 'skip') {
+                warnings.push({
+                  code: 'DUPLICATE_SKIPPED',
+                  message: `Skipped duplicate relationship: ${record.sourceMalId} -> ${record.targetMalId} (${record.relationshipType})`,
+                  table: 'animeRelationships',
+                  recordId: record.id,
+                  details: { 
+                    sourceMalId: record.sourceMalId, 
+                    targetMalId: record.targetMalId, 
+                    relationshipType: record.relationshipType 
+                  }
+                });
+                continue;
+              }
+            } else if (!exists) {
+              const result = insertStmt.run(
+                record.sourceMalId,
+                record.targetMalId,
+                record.relationshipType,
+                record.createdAt || new Date().toISOString()
+              );
+              
+              if (result.changes > 0) {
+                existingRelationships.add(relationshipKey); // Update our cache
+                batchProcessed++;
+              }
+            }
+          } catch (error) {
+            errors.push({
+              code: 'RELATIONSHIP_INSERT_ERROR',
+              message: `Failed to import relationship record: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              table: 'animeRelationships',
+              recordId: record.id,
+              details: { 
+                sourceMalId: record.sourceMalId, 
+                targetMalId: record.targetMalId, 
+                relationshipType: record.relationshipType 
+              }
+            });
+          }
+        }
+
+        return batchProcessed;
+      });
+
+      try {
+        const batchResult = batchTransaction();
+        processedCount += batchResult;
+        console.log(`Processed relationships batch ${Math.floor(i / this.BATCH_SIZE) + 1}: ${batchResult} records (${processedCount}/${records.length} total)`);
+      } catch (error) {
+        console.error(`Error processing relationships batch ${Math.floor(i / this.BATCH_SIZE) + 1}:`, error);
+        errors.push({
+          code: 'BATCH_PROCESSING_ERROR',
+          message: `Failed to process relationships batch: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          table: 'animeRelationships',
+          details: { batchStart: i, batchSize: batch.length }
+        });
+      }
+    }
+
+    console.log(`Completed batch import of anime relationships: ${processedCount} records processed`);
+    return processedCount;
+  }
+
+  /**
+   * Import timeline cache records with batch processing optimization
    */
   private importTimelineCache(
     records: ExportData['data']['timelineCache'],
@@ -466,6 +899,13 @@ export class ImportExecutionService {
     warnings: ImportWarning[]
   ): number {
     if (records.length === 0) return 0;
+
+    console.log(`Importing ${records.length} timeline cache records...`);
+
+    // Use batch processing for large datasets
+    if (records.length > this.LARGE_DATASET_THRESHOLD) {
+      return this.importTimelineCacheBatch(records, options, errors, warnings);
+    }
 
     let processedCount = 0;
     const insertStmt = this.sqlite.prepare(`
@@ -530,6 +970,112 @@ export class ImportExecutionService {
       }
     }
 
+    return processedCount;
+  }
+
+  /**
+   * Import timeline cache records in batches for better performance
+   */
+  private importTimelineCacheBatch(
+    records: ExportData['data']['timelineCache'],
+    options: ImportOptions,
+    errors: ImportError[],
+    warnings: ImportWarning[]
+  ): number {
+    console.log(`Using batch processing for ${records.length} timeline cache records...`);
+
+    let processedCount = 0;
+    
+    const insertStmt = this.sqlite.prepare(`
+      INSERT OR REPLACE INTO timeline_cache (
+        root_mal_id, timeline_data, cache_version, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?)
+    `);
+
+    // Build validation set for efficient lookups
+    const validMalIds = new Set<number>();
+    
+    if (options.validateRelationships) {
+      const malIdRecords = this.sqlite.prepare('SELECT mal_id FROM anime_info').all() as { mal_id: number }[];
+      malIdRecords.forEach(row => validMalIds.add(row.mal_id));
+    }
+
+    // Process records in batches
+    for (let i = 0; i < records.length; i += this.BATCH_SIZE) {
+      const batch = records.slice(i, i + this.BATCH_SIZE);
+      const batchTransaction = this.sqlite.transaction(() => {
+        let batchProcessed = 0;
+
+        for (const record of batch) {
+          try {
+            // Validate that the root MAL ID exists
+            if (options.validateRelationships && !validMalIds.has(record.rootMalId)) {
+              warnings.push({
+                code: 'MISSING_REFERENCE',
+                message: `Timeline cache references non-existent MAL ID ${record.rootMalId}`,
+                table: 'timelineCache',
+                recordId: record.id,
+                details: { rootMalId: record.rootMalId }
+              });
+              // Continue anyway as cache can be rebuilt
+            }
+
+            // Validate timeline data is valid JSON
+            try {
+              JSON.parse(record.timelineData);
+            } catch {
+              errors.push({
+                code: 'INVALID_JSON_DATA',
+                message: `Timeline cache contains invalid JSON data`,
+                table: 'timelineCache',
+                recordId: record.id,
+                details: { rootMalId: record.rootMalId }
+              });
+              continue;
+            }
+
+            // Insert or replace (cache can always be updated)
+            const result = insertStmt.run(
+              record.rootMalId,
+              record.timelineData,
+              record.cacheVersion,
+              record.createdAt || new Date().toISOString(),
+              record.updatedAt || new Date().toISOString()
+            );
+            
+            if (result.changes > 0) {
+              batchProcessed++;
+            }
+          } catch (error) {
+            errors.push({
+              code: 'TIMELINE_CACHE_INSERT_ERROR',
+              message: `Failed to import timeline cache record: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              table: 'timelineCache',
+              recordId: record.id,
+              details: { rootMalId: record.rootMalId }
+            });
+          }
+        }
+
+        return batchProcessed;
+      });
+
+      try {
+        const batchResult = batchTransaction();
+        processedCount += batchResult;
+        console.log(`Processed timeline cache batch ${Math.floor(i / this.BATCH_SIZE) + 1}: ${batchResult} records (${processedCount}/${records.length} total)`);
+      } catch (error) {
+        console.error(`Error processing timeline cache batch ${Math.floor(i / this.BATCH_SIZE) + 1}:`, error);
+        errors.push({
+          code: 'BATCH_PROCESSING_ERROR',
+          message: `Failed to process timeline cache batch: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          table: 'timelineCache',
+          details: { batchStart: i, batchSize: batch.length }
+        });
+      }
+    }
+
+    console.log(`Completed batch import of timeline cache: ${processedCount} records processed`);
     return processedCount;
   }
 

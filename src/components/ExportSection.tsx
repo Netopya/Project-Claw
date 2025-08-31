@@ -78,7 +78,7 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
     window.URL.revokeObjectURL(url);
   }, []);
 
-  const exportData = useCallback(async () => {
+  const exportData = useCallback(async (useStreaming = false) => {
     try {
       setIsExporting(true);
       clearMessages();
@@ -93,10 +93,14 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
       progressTracker.completeStep('validate', 'Data validation completed');
       
       // Step 2: Extract data with retry logic
-      progressTracker.startStep('extract', 'Extracting database records...');
+      const extractMessage = useStreaming ? 'Streaming database records...' : 'Extracting database records...';
+      progressTracker.startStep('extract', extractMessage);
+      
+      const endpoint = useStreaming ? '/api/export/stream' : '/api/export/generate';
+      const queryParams = useStreaming ? '' : `?stream=${useStreaming}`;
       
       const response = await retryOperation(async () => {
-        const res = await fetch('/api/export/generate', {
+        const res = await fetch(`${endpoint}${queryParams}`, {
           method: 'POST'
         });
         
@@ -123,10 +127,12 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
         return res;
       }, 3, 'Export Data Extraction');
       
-      progressTracker.completeStep('extract', 'Database records extracted successfully');
+      const extractCompleteMessage = useStreaming ? 'Database streaming completed' : 'Database records extracted successfully';
+      progressTracker.completeStep('extract', extractCompleteMessage);
       
       // Step 3: Generate file
-      progressTracker.startStep('generate', 'Generating export file...');
+      const generateMessage = useStreaming ? 'Processing streaming data...' : 'Generating export file...';
+      progressTracker.startStep('generate', generateMessage);
       const blob = await response.blob();
       progressTracker.completeStep('generate', 'Export file generated');
       
@@ -145,9 +151,10 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
       progressTracker.completeStep('download', 'File download initiated');
       progressTracker.complete();
       
-      addMessage('success', `Export completed successfully!`, {
+      const exportType = useStreaming ? 'Streaming export' : 'Export';
+      addMessage('success', `${exportType} completed successfully!`, {
         title: 'Export Successful',
-        details: `Downloaded: ${filename}\nSize: ${(blob.size / 1024).toFixed(1)} KB`,
+        details: `Downloaded: ${filename}\nSize: ${(blob.size / 1024).toFixed(1)} KB\nMethod: ${useStreaming ? 'Streaming' : 'Standard'}`,
         autoRemove: true
       });
       
@@ -243,17 +250,48 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
         </p>
         
         <div className="space-y-4">
-          <button 
-            onClick={exportData}
-            disabled={isExporting}
-            className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            aria-label="Export all database data"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-            </svg>
-            <span>{isExporting ? 'Exporting...' : 'Export Data'}</span>
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button 
+              onClick={() => exportData(false)}
+              disabled={isExporting}
+              className="flex-1 sm:flex-none inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              aria-label="Export all database data"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              <span>{isExporting ? 'Exporting...' : 'Export Data'}</span>
+            </button>
+            
+            {stats.total > 5000 && (
+              <button 
+                onClick={() => exportData(true)}
+                disabled={isExporting}
+                className="flex-1 sm:flex-none inline-flex items-center justify-center px-6 py-3 border border-blue-600 text-base font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:bg-gray-800 dark:text-blue-400 dark:border-blue-400 dark:hover:bg-gray-700"
+                aria-label="Export data using streaming for large datasets"
+                title="Recommended for large datasets (>5,000 records)"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                </svg>
+                <span>{isExporting ? 'Streaming...' : 'Stream Export'}</span>
+              </button>
+            )}
+          </div>
+          
+          {stats.total > 5000 && (
+            <div className="text-sm text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md">
+              <div className="flex items-start">
+                <svg className="w-4 h-4 mr-2 mt-0.5 text-blue-600 dark:text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <div>
+                  <p className="font-medium text-blue-800 dark:text-blue-300">Large Dataset Detected</p>
+                  <p>With {stats.total.toLocaleString()} records, consider using "Stream Export" for better performance and memory efficiency.</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Enhanced Progress Tracking */}
           {progressState && (

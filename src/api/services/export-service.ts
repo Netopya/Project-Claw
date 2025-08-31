@@ -6,6 +6,8 @@ import { createHash } from 'crypto';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { Readable } from 'stream';
+import { gt, sql } from 'drizzle-orm';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -13,13 +15,27 @@ const __dirname = dirname(__filename);
 export class ExportService {
   private readonly CURRENT_SCHEMA_VERSION = '1.0.0';
   private readonly APPLICATION_NAME = 'Project Claw';
+  private readonly BATCH_SIZE = 1000; // Process records in batches for memory efficiency
+  private readonly STREAM_THRESHOLD = 5000; // Use streaming for datasets larger than this
 
   /**
-   * Extract all data from database tables
+   * Extract all data from database tables with optimized batch processing
    */
   async extractAllData(): Promise<ExportData['data']> {
     try {
-      console.log('Starting data extraction from all database tables...');
+      console.log('Starting optimized data extraction from all database tables...');
+
+      // Get record counts first to determine if we need streaming
+      const counts = await this.getTableCounts();
+      const totalRecords = counts.animeInfo + counts.userWatchlist + counts.animeRelationships + counts.timelineCache;
+      
+      console.log(`Total records to extract: ${totalRecords}`);
+
+      // Use batch extraction for large datasets
+      if (totalRecords > this.STREAM_THRESHOLD) {
+        console.log('Using batch extraction for large dataset...');
+        return await this.extractDataInBatches();
+      }
 
       // Extract data from all tables in parallel for better performance
       const [
@@ -46,6 +62,127 @@ export class ExportService {
       console.error('Error extracting data from database:', error);
       throw new Error(`Failed to extract database data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  /**
+   * Get record counts for all tables
+   */
+  private async getTableCounts(): Promise<{
+    animeInfo: number;
+    userWatchlist: number;
+    animeRelationships: number;
+    timelineCache: number;
+  }> {
+    const [
+      animeInfoCount,
+      userWatchlistCount,
+      animeRelationshipsCount,
+      timelineCacheCount
+    ] = await Promise.all([
+      db.select({ count: sql<number>`count(*)` }).from(animeInfo),
+      db.select({ count: sql<number>`count(*)` }).from(userWatchlist),
+      db.select({ count: sql<number>`count(*)` }).from(animeRelationships),
+      db.select({ count: sql<number>`count(*)` }).from(timelineCache)
+    ]);
+
+    return {
+      animeInfo: animeInfoCount[0]?.count || 0,
+      userWatchlist: userWatchlistCount[0]?.count || 0,
+      animeRelationships: animeRelationshipsCount[0]?.count || 0,
+      timelineCache: timelineCacheCount[0]?.count || 0
+    };
+  }
+
+  /**
+   * Extract data in batches for memory efficiency
+   */
+  private async extractDataInBatches(): Promise<ExportData['data']> {
+    const result: ExportData['data'] = {
+      animeInfo: [],
+      userWatchlist: [],
+      animeRelationships: [],
+      timelineCache: []
+    };
+
+    // Extract anime info in batches
+    let lastId = 0;
+    let hasMore = true;
+    while (hasMore) {
+      const batch = await db.select()
+        .from(animeInfo)
+        .where(gt(animeInfo.id, lastId))
+        .orderBy(animeInfo.id)
+        .limit(this.BATCH_SIZE);
+      
+      if (batch.length === 0) {
+        hasMore = false;
+      } else {
+        result.animeInfo.push(...batch);
+        lastId = batch[batch.length - 1].id;
+        console.log(`Extracted anime info batch: ${result.animeInfo.length} total records`);
+      }
+    }
+
+    // Extract user watchlist in batches
+    lastId = 0;
+    hasMore = true;
+    while (hasMore) {
+      const batch = await db.select()
+        .from(userWatchlist)
+        .where(gt(userWatchlist.id, lastId))
+        .orderBy(userWatchlist.id)
+        .limit(this.BATCH_SIZE);
+      
+      if (batch.length === 0) {
+        hasMore = false;
+      } else {
+        result.userWatchlist.push(...batch);
+        lastId = batch[batch.length - 1].id;
+        console.log(`Extracted watchlist batch: ${result.userWatchlist.length} total records`);
+      }
+    }
+
+    // Extract anime relationships in batches
+    lastId = 0;
+    hasMore = true;
+    while (hasMore) {
+      const batch = await db.select()
+        .from(animeRelationships)
+        .where(gt(animeRelationships.id, lastId))
+        .orderBy(animeRelationships.id)
+        .limit(this.BATCH_SIZE);
+      
+      if (batch.length === 0) {
+        hasMore = false;
+      } else {
+        result.animeRelationships.push(...batch);
+        lastId = batch[batch.length - 1].id;
+        console.log(`Extracted relationships batch: ${result.animeRelationships.length} total records`);
+      }
+    }
+
+    // Extract timeline cache in batches
+    lastId = 0;
+    hasMore = true;
+    while (hasMore) {
+      const batch = await db.select()
+        .from(timelineCache)
+        .where(gt(timelineCache.id, lastId))
+        .orderBy(timelineCache.id)
+        .limit(this.BATCH_SIZE);
+      
+      if (batch.length === 0) {
+        hasMore = false;
+      } else {
+        result.timelineCache.push(...batch);
+        lastId = batch[batch.length - 1].id;
+        console.log(`Extracted timeline cache batch: ${result.timelineCache.length} total records`);
+      }
+    }
+
+    console.log(`Batch extraction completed: ${result.animeInfo.length} anime, ${result.userWatchlist.length} watchlist entries, ${result.animeRelationships.length} relationships, ${result.timelineCache.length} timeline cache entries`);
+
+    return result;
   }
 
   /**
@@ -247,6 +384,128 @@ export class ExportService {
       console.error('Error generating export file:', error);
       throw new Error(`Failed to generate export file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  /**
+   * Generate streaming export for large datasets
+   */
+  async generateStreamingExport(): Promise<Readable> {
+    try {
+      console.log('Generating streaming export...');
+
+      const counts = await this.getTableCounts();
+      const totalRecords = counts.animeInfo + counts.userWatchlist + counts.animeRelationships + counts.timelineCache;
+
+      if (totalRecords <= this.STREAM_THRESHOLD) {
+        // For small datasets, use regular export and convert to stream
+        const buffer = await this.generateExportFile();
+        return Readable.from(buffer);
+      }
+
+      // Create streaming export for large datasets
+      return this.createStreamingExport();
+    } catch (error) {
+      console.error('Error generating streaming export:', error);
+      throw new Error(`Failed to generate streaming export: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Create a streaming export that processes data in chunks
+   */
+  private createStreamingExport(): Readable {
+    let currentTable = 0;
+    let currentBatch = 0;
+    let lastId = 0;
+    let metadataWritten = false;
+    let tablesStarted = false;
+    let currentTableName = '';
+    
+    const tables = [
+      { name: 'animeInfo', schema: animeInfo },
+      { name: 'userWatchlist', schema: userWatchlist },
+      { name: 'animeRelationships', schema: animeRelationships },
+      { name: 'timelineCache', schema: timelineCache }
+    ];
+
+    // Bind methods to preserve context
+    const extractAllData = this.extractAllData.bind(this);
+    const generateChecksum = this.generateChecksum.bind(this);
+    const createExportMetadata = this.createExportMetadata.bind(this);
+
+    return new Readable({
+      objectMode: false,
+      async read() {
+        try {
+          // Write metadata first
+          if (!metadataWritten) {
+            const data = await extractAllData();
+            const checksum = generateChecksum(data);
+            const metadata = createExportMetadata(data, checksum);
+            
+            this.push('{\n  "metadata": ');
+            this.push(JSON.stringify(metadata, null, 2));
+            this.push(',\n  "data": {\n');
+            metadataWritten = true;
+            tablesStarted = false;
+            return;
+          }
+
+          // Process tables one by one
+          if (currentTable < tables.length) {
+            const table = tables[currentTable];
+            
+            // Start new table
+            if (!tablesStarted) {
+              if (currentTable > 0) {
+                this.push(',\n');
+              }
+              this.push(`    "${table.name}": [\n`);
+              tablesStarted = true;
+              currentBatch = 0;
+              lastId = 0;
+              currentTableName = table.name;
+            }
+
+            // Get batch of records
+            const batch = await db.select()
+              .from(table.schema)
+              .where(gt((table.schema as any).id, lastId))
+              .orderBy((table.schema as any).id)
+              .limit(this.BATCH_SIZE);
+
+            if (batch.length === 0) {
+              // End current table and move to next
+              this.push('\n    ]');
+              currentTable++;
+              tablesStarted = false;
+              console.log(`Completed streaming table: ${currentTableName}`);
+              return; // Return immediately to avoid continuing processing
+            } else {
+              // Write batch records
+              for (let i = 0; i < batch.length; i++) {
+                if (currentBatch > 0 || i > 0) {
+                  this.push(',\n');
+                }
+                this.push('      ');
+                this.push(JSON.stringify(batch[i], null, 0));
+              }
+              
+              lastId = batch[batch.length - 1].id;
+              currentBatch++;
+              console.log(`Streamed batch ${currentBatch} for ${currentTableName}: ${batch.length} records`);
+            }
+          } else {
+            // End of all tables
+            this.push('\n  }\n}');
+            this.push(null); // End stream
+          }
+        } catch (error) {
+          console.error('Error in streaming export:', error);
+          this.destroy(error instanceof Error ? error : new Error('Unknown streaming error'));
+        }
+      }
+    });
   }
 
   /**

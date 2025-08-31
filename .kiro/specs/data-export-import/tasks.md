@@ -136,7 +136,12 @@
   - Write component tests for export interactions
   - _Requirements: 1.1, 1.2, 1.3, 7.3, 7.5_
 
-- [ ] 11. Build import UI components
+- [x] 11. Build import UI components
+
+
+
+
+
   - Create ImportSection component with file upload area (drag & drop)
   - Implement import preview display with data summary
   - Add merge/replace mode selection and duplicate handling options

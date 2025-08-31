@@ -48,6 +48,7 @@ export class ImportExecutionService {
 
         result.recordsProcessed.userWatchlist = this.importUserWatchlist(
           exportData.data.userWatchlist, 
+          exportData,
           options, 
           result.errors, 
           result.warnings
@@ -390,6 +391,7 @@ export class ImportExecutionService {
    */
   private importUserWatchlist(
     records: ExportData['data']['userWatchlist'],
+    exportData: ExportData,
     options: ImportOptions,
     errors: ImportError[],
     warnings: ImportWarning[]
@@ -397,10 +399,11 @@ export class ImportExecutionService {
     if (records.length === 0) return 0;
 
     console.log(`Importing ${records.length} user watchlist records...`);
+    console.log('Watchlist records to import:', records.map(r => ({ id: r.id, animeInfoId: r.animeInfoId })));
 
     // Use batch processing for large datasets
     if (records.length > this.LARGE_DATASET_THRESHOLD) {
-      return this.importUserWatchlistBatch(records, options, errors, warnings);
+      return this.importUserWatchlistBatch(records, exportData, options, errors, warnings);
     }
 
     let processedCount = 0;
@@ -424,18 +427,38 @@ export class ImportExecutionService {
         // Map animeInfoId to current database ID if needed
         let actualAnimeInfoId = record.animeInfoId;
         
-        // In merge mode, we need to find the actual anime_info_id from the current database
-        if (options.mode === 'merge') {
-          // This is a simplified approach - in practice, you might need a mapping table
-          // For now, we'll assume the animeInfoId corresponds to the anime with the same position
-          // A more robust approach would maintain a mapping of old IDs to new IDs
-          const animeInfoRecord = getAnimeInfoIdStmt.get(record.animeInfoId);
-          if (animeInfoRecord) {
-            actualAnimeInfoId = (animeInfoRecord as any).id;
+        // In both merge and replace modes, we need to find the actual anime_info_id from the current database
+        // because the anime_info table gets new auto-incremented IDs
+        if (options.mode === 'merge' || options.mode === 'replace') {
+          // The exported animeInfoId is the old database's internal ID
+          // We need to find the corresponding anime in the current database
+          // Since we don't have the MAL ID directly, we need to look it up from the exported anime data
+          
+          // Find the corresponding anime info record from the export data
+          const exportedAnimeInfo = exportData.data.animeInfo.find(anime => anime.id === record.animeInfoId);
+          console.log(`Processing watchlist record ${record.id}: animeInfoId=${record.animeInfoId}, found exported anime:`, exportedAnimeInfo ? `MAL ID ${exportedAnimeInfo.malId}` : 'NOT FOUND');
+          if (exportedAnimeInfo) {
+            // Now find the anime in the current database by MAL ID
+            const animeInfoRecord = getAnimeInfoIdStmt.get(exportedAnimeInfo.malId);
+            console.log(`MAL ID ${exportedAnimeInfo.malId} maps to current DB record:`, animeInfoRecord);
+            if (animeInfoRecord) {
+              actualAnimeInfoId = (animeInfoRecord as any).id;
+            } else {
+              console.error(`FOREIGN_KEY_VIOLATION: Referenced anime with MAL ID ${exportedAnimeInfo.malId} not found in current database`);
+              errors.push({
+                code: 'FOREIGN_KEY_VIOLATION',
+                message: `Referenced anime with MAL ID ${exportedAnimeInfo.malId} not found in current database`,
+                table: 'userWatchlist',
+                recordId: record.id,
+                details: { animeInfoId: record.animeInfoId, malId: exportedAnimeInfo.malId }
+              });
+              continue;
+            }
           } else {
+            console.error(`FOREIGN_KEY_VIOLATION: Referenced anime_info_id ${record.animeInfoId} not found in export data`);
             errors.push({
               code: 'FOREIGN_KEY_VIOLATION',
-              message: `Referenced anime_info_id ${record.animeInfoId} not found`,
+              message: `Referenced anime_info_id ${record.animeInfoId} not found in export data`,
               table: 'userWatchlist',
               recordId: record.id,
               details: { animeInfoId: record.animeInfoId }
@@ -444,38 +467,8 @@ export class ImportExecutionService {
           }
         }
 
-        const existing = checkExistingStmt.get(actualAnimeInfoId);
-        
-        if (existing && options.mode === 'merge') {
-          if (options.handleDuplicates === 'skip') {
-            warnings.push({
-              code: 'DUPLICATE_SKIPPED',
-              message: `Skipped duplicate watchlist entry for anime_info_id ${actualAnimeInfoId}`,
-              table: 'userWatchlist',
-              recordId: record.id,
-              details: { animeInfoId: actualAnimeInfoId }
-            });
-            continue;
-          } else if (options.handleDuplicates === 'update') {
-            updateStmt.run(
-              record.priority,
-              record.watchStatus,
-              record.userRating,
-              record.notes,
-              new Date().toISOString(),
-              actualAnimeInfoId
-            );
-            
-            warnings.push({
-              code: 'DUPLICATE_UPDATED',
-              message: `Updated existing watchlist entry for anime_info_id ${actualAnimeInfoId}`,
-              table: 'userWatchlist',
-              recordId: record.id,
-              details: { animeInfoId: actualAnimeInfoId }
-            });
-            processedCount++;
-          }
-        } else if (!existing) {
+        if (options.mode === 'replace') {
+          // In replace mode, just insert all records since we cleared the table
           insertStmt.run(
             actualAnimeInfoId,
             record.priority,
@@ -486,6 +479,51 @@ export class ImportExecutionService {
             record.updatedAt || new Date().toISOString()
           );
           processedCount++;
+        } else {
+          // Merge mode - check for existing entries
+          const existing = checkExistingStmt.get(actualAnimeInfoId);
+          
+          if (existing) {
+            if (options.handleDuplicates === 'skip') {
+              warnings.push({
+                code: 'DUPLICATE_SKIPPED',
+                message: `Skipped duplicate watchlist entry for anime_info_id ${actualAnimeInfoId}`,
+                table: 'userWatchlist',
+                recordId: record.id,
+                details: { animeInfoId: actualAnimeInfoId }
+              });
+              continue;
+            } else if (options.handleDuplicates === 'update') {
+              updateStmt.run(
+                record.priority,
+                record.watchStatus,
+                record.userRating,
+                record.notes,
+                new Date().toISOString(),
+                actualAnimeInfoId
+              );
+              
+              warnings.push({
+                code: 'DUPLICATE_UPDATED',
+                message: `Updated existing watchlist entry for anime_info_id ${actualAnimeInfoId}`,
+                table: 'userWatchlist',
+                recordId: record.id,
+                details: { animeInfoId: actualAnimeInfoId }
+              });
+              processedCount++;
+            }
+          } else {
+            insertStmt.run(
+              actualAnimeInfoId,
+              record.priority,
+              record.watchStatus,
+              record.userRating,
+              record.notes,
+              record.createdAt || new Date().toISOString(),
+              record.updatedAt || new Date().toISOString()
+            );
+            processedCount++;
+          }
         }
       } catch (error) {
         errors.push({
@@ -506,11 +544,13 @@ export class ImportExecutionService {
    */
   private importUserWatchlistBatch(
     records: ExportData['data']['userWatchlist'],
+    exportData: ExportData,
     options: ImportOptions,
     errors: ImportError[],
     warnings: ImportWarning[]
   ): number {
     console.log(`Using batch processing for ${records.length} user watchlist records...`);
+    console.log('Watchlist records to import:', records.map(r => ({ id: r.id, animeInfoId: r.animeInfoId })));
 
     let processedCount = 0;
     
@@ -527,18 +567,24 @@ export class ImportExecutionService {
     `);
 
     // Build anime_info_id mapping for efficient lookups
-    const animeInfoMapping = new Map<number, number>();
+    const animeInfoMapping = new Map<number, number>(); // MAL ID -> current database ID
     const existingWatchlist = new Set<number>();
     
+    // Get all anime info mappings (MAL ID -> current database ID) for both merge and replace modes
+    const animeInfoRecords = this.sqlite.prepare('SELECT id, mal_id FROM anime_info').all() as { id: number, mal_id: number }[];
+    animeInfoRecords.forEach(row => animeInfoMapping.set(row.mal_id, row.id));
+    
     if (options.mode === 'merge') {
-      // Get all anime info mappings
-      const animeInfoRecords = this.sqlite.prepare('SELECT id, mal_id FROM anime_info').all() as { id: number, mal_id: number }[];
-      animeInfoRecords.forEach(row => animeInfoMapping.set(row.mal_id, row.id));
-      
-      // Get existing watchlist entries
+      // Get existing watchlist entries only for merge mode
       const existingEntries = this.sqlite.prepare('SELECT anime_info_id FROM user_watchlist').all() as { anime_info_id: number }[];
       existingEntries.forEach(row => existingWatchlist.add(row.anime_info_id));
     }
+
+    // Build export data mapping for efficient lookups (old anime_info_id -> MAL ID)
+    const exportAnimeMapping = new Map<number, number>();
+    exportData.data.animeInfo.forEach(anime => {
+      exportAnimeMapping.set(anime.id, anime.malId);
+    });
 
     // Process records in batches
     for (let i = 0; i < records.length; i += this.BATCH_SIZE) {
@@ -550,15 +596,33 @@ export class ImportExecutionService {
           try {
             let actualAnimeInfoId = record.animeInfoId;
             
-            // Map to current database ID in merge mode
-            if (options.mode === 'merge') {
-              const mappedId = animeInfoMapping.get(record.animeInfoId);
-              if (mappedId) {
-                actualAnimeInfoId = mappedId;
+            // Map to current database ID (needed for both merge and replace modes)
+            if (options.mode === 'merge' || options.mode === 'replace') {
+              // First, find the MAL ID from the export data
+              const malId = exportAnimeMapping.get(record.animeInfoId);
+              console.log(`Processing watchlist record ${record.id}: animeInfoId=${record.animeInfoId}, malId=${malId}`);
+              if (malId) {
+                // Then find the current database ID using the MAL ID
+                const currentDbId = animeInfoMapping.get(malId);
+                console.log(`MAL ID ${malId} maps to current DB ID: ${currentDbId}`);
+                if (currentDbId) {
+                  actualAnimeInfoId = currentDbId;
+                } else {
+                  console.error(`FOREIGN_KEY_VIOLATION: Referenced anime with MAL ID ${malId} not found in current database`);
+                  errors.push({
+                    code: 'FOREIGN_KEY_VIOLATION',
+                    message: `Referenced anime with MAL ID ${malId} not found in current database`,
+                    table: 'userWatchlist',
+                    recordId: record.id,
+                    details: { animeInfoId: record.animeInfoId, malId }
+                  });
+                  continue;
+                }
               } else {
+                console.error(`FOREIGN_KEY_VIOLATION: Referenced anime_info_id ${record.animeInfoId} not found in export data`);
                 errors.push({
                   code: 'FOREIGN_KEY_VIOLATION',
-                  message: `Referenced anime_info_id ${record.animeInfoId} not found`,
+                  message: `Referenced anime_info_id ${record.animeInfoId} not found in export data`,
                   table: 'userWatchlist',
                   recordId: record.id,
                   details: { animeInfoId: record.animeInfoId }
@@ -567,30 +631,8 @@ export class ImportExecutionService {
               }
             }
 
-            const exists = existingWatchlist.has(actualAnimeInfoId);
-            
-            if (exists && options.mode === 'merge') {
-              if (options.handleDuplicates === 'skip') {
-                warnings.push({
-                  code: 'DUPLICATE_SKIPPED',
-                  message: `Skipped duplicate watchlist entry for anime_info_id ${actualAnimeInfoId}`,
-                  table: 'userWatchlist',
-                  recordId: record.id,
-                  details: { animeInfoId: actualAnimeInfoId }
-                });
-                continue;
-              } else if (options.handleDuplicates === 'update') {
-                updateStmt.run(
-                  record.priority,
-                  record.watchStatus,
-                  record.userRating,
-                  record.notes,
-                  new Date().toISOString(),
-                  actualAnimeInfoId
-                );
-                batchProcessed++;
-              }
-            } else if (!exists) {
+            if (options.mode === 'replace') {
+              // In replace mode, just insert all records since we cleared the table
               insertStmt.run(
                 actualAnimeInfoId,
                 record.priority,
@@ -600,8 +642,45 @@ export class ImportExecutionService {
                 record.createdAt || new Date().toISOString(),
                 record.updatedAt || new Date().toISOString()
               );
-              existingWatchlist.add(actualAnimeInfoId); // Update our cache
               batchProcessed++;
+            } else {
+              // Merge mode - check for existing entries
+              const exists = existingWatchlist.has(actualAnimeInfoId);
+              
+              if (exists) {
+                if (options.handleDuplicates === 'skip') {
+                  warnings.push({
+                    code: 'DUPLICATE_SKIPPED',
+                    message: `Skipped duplicate watchlist entry for anime_info_id ${actualAnimeInfoId}`,
+                    table: 'userWatchlist',
+                    recordId: record.id,
+                    details: { animeInfoId: actualAnimeInfoId }
+                  });
+                  continue;
+                } else if (options.handleDuplicates === 'update') {
+                  updateStmt.run(
+                    record.priority,
+                    record.watchStatus,
+                    record.userRating,
+                    record.notes,
+                    new Date().toISOString(),
+                    actualAnimeInfoId
+                  );
+                  batchProcessed++;
+                }
+              } else {
+                insertStmt.run(
+                  actualAnimeInfoId,
+                  record.priority,
+                  record.watchStatus,
+                  record.userRating,
+                  record.notes,
+                  record.createdAt || new Date().toISOString(),
+                  record.updatedAt || new Date().toISOString()
+                );
+                existingWatchlist.add(actualAnimeInfoId); // Update our cache
+                batchProcessed++;
+              }
             }
           } catch (error) {
             errors.push({

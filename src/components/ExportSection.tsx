@@ -245,14 +245,33 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
           <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
             {stats.timelineCache.toLocaleString()}
           </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">Timeline Cache</div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            Timeline Cache
+            <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+              (Generated on-demand)
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400 mb-6">
+      <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400 mb-4">
         <span>Total Records: <span className="font-medium">{stats.total.toLocaleString()}</span></span>
         <span>Last Updated: <ClientOnlyTimestamp timestamp={stats.lastUpdated} /></span>
       </div>
+
+      {stats.timelineCache === 0 && (
+        <div className="text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md mb-6">
+          <div className="flex items-start">
+            <svg className="w-4 h-4 mr-2 mt-0.5 text-blue-600 dark:text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div>
+              <p className="font-medium text-blue-800 dark:text-blue-300">Timeline System Info</p>
+              <p>Timelines are generated on-demand from relationship data for optimal freshness. The timeline cache is currently unused but available for future performance optimizations.</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">

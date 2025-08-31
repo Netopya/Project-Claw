@@ -11,6 +11,13 @@ import type {
 import { ProgressTracker, IMPORT_STEPS, type ProgressState } from '../utils/progress-tracker.js';
 import { ProgressIndicator } from './ProgressIndicator.js';
 import { MessageSystem, useMessageSystem } from './MessageSystem.js';
+import { 
+  getErrorDetails, 
+  retryOperation, 
+  ImportError, 
+  ValidationError,
+  ERROR_CODES 
+} from '../utils/export-import-error-handler.js';
 
 interface ImportSectionProps {
   onStatsUpdate?: (stats: DatabaseStats) => void;
@@ -109,10 +116,43 @@ export const ImportSection: React.FC<ImportSectionProps> = ({ onStatsUpdate }) =
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const response = await fetch('/api/import/validate', {
-        method: 'POST',
-        body: formData
-      });
+      const response = await retryOperation(async () => {
+        const res = await fetch('/api/import/validate', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          
+          // Create specific error based on response
+          if (errorData.error?.code) {
+            if (errorData.error.code.includes('VALIDATION')) {
+              const validationError = new ValidationError(
+                errorData.error.message || 'Validation failed',
+                errorData.error.details ? [errorData.error.details] : [],
+                errorData.error.code
+              );
+              throw validationError;
+            } else {
+              const importError = new ImportError(
+                errorData.error.message || 'Import validation failed',
+                errorData.error.code,
+                res.status
+              );
+              throw importError;
+            }
+          }
+          
+          throw new ImportError(
+            errorData.error || 'Validation failed',
+            ERROR_CODES.IMPORT_INVALID_FORMAT,
+            res.status
+          );
+        }
+        
+        return res;
+      }, 2, 'File Validation');
 
       const result = await response.json();
       progressTracker.completeStep('format', 'File format validated');
@@ -139,17 +179,37 @@ export const ImportSection: React.FC<ImportSectionProps> = ({ onStatsUpdate }) =
         }
       } else {
         progressTracker.errorStep('content', result.error.message);
-        addMessage('error', 'Validation failed', {
-          title: 'Server Error',
-          details: result.error.message
+        const errorDetails = getErrorDetails(new Error(result.error.message));
+        addMessage('error', errorDetails.message, {
+          title: errorDetails.title,
+          details: errorDetails.suggestions.join('\n')
         });
       }
     } catch (error) {
       console.error('Validation error:', error);
-      addMessage('error', 'Validation failed', {
-        title: 'Network Error',
-        details: error instanceof Error ? error.message : 'Unknown error occurred'
+      
+      // Get enhanced error details
+      const errorDetails = getErrorDetails(error as Error);
+      
+      addMessage('error', errorDetails.message, {
+        title: errorDetails.title,
+        details: errorDetails.suggestions.join('\n'),
+        actions: errorDetails.retryable ? [
+          {
+            label: 'Retry Validation',
+            onClick: () => validateFile(),
+            variant: 'primary'
+          }
+        ] : []
       });
+      
+      // Update progress tracker with error
+      const progressTracker = new ProgressTracker([
+        { id: 'format', name: 'Validating file format', weight: 30 },
+        { id: 'content', name: 'Validating file content', weight: 50 },
+        { id: 'preview', name: 'Generating preview', weight: 20 }
+      ], setProgressState);
+      progressTracker.errorStep('content', errorDetails.message);
     } finally {
       setIsValidating(false);
       setTimeout(() => setProgressState(null), 3000);
@@ -224,12 +284,38 @@ export const ImportSection: React.FC<ImportSectionProps> = ({ onStatsUpdate }) =
         progressTracker.completeStep('migrate', 'Schema version compatible');
       }
 
-      // Step 4: Process import
+      // Step 4: Process import with retry logic
       progressTracker.startStep('process', 'Processing import data...');
-      const response = await fetch('/api/import/execute', {
-        method: 'POST',
-        body: formData
-      });
+      
+      const response = await retryOperation(async () => {
+        const res = await fetch('/api/import/execute', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          
+          // Create specific error based on response
+          if (errorData.error?.code) {
+            const importError = new ImportError(
+              errorData.error.message || 'Import execution failed',
+              errorData.error.code,
+              res.status,
+              errorData.error.code !== ERROR_CODES.IMPORT_ROLLBACK_FAILED
+            );
+            throw importError;
+          }
+          
+          throw new ImportError(
+            errorData.error || 'Import execution failed',
+            ERROR_CODES.IMPORT_EXECUTION_FAILED,
+            res.status
+          );
+        }
+        
+        return res;
+      }, 2, 'Import Execution');
 
       const result = await response.json();
 
@@ -277,31 +363,40 @@ export const ImportSection: React.FC<ImportSectionProps> = ({ onStatsUpdate }) =
         }, 5000);
       } else {
         progressTracker.errorStep('process', result.error.message);
-        addMessage('error', 'Import operation failed', {
-          title: 'Import Error',
-          details: result.error.message,
-          actions: [
+        const errorDetails = getErrorDetails(new Error(result.error.message));
+        addMessage('error', errorDetails.message, {
+          title: errorDetails.title,
+          details: errorDetails.suggestions.join('\n'),
+          actions: errorDetails.retryable ? [
             {
               label: 'Retry Import',
               onClick: () => executeImport(),
               variant: 'primary'
             }
-          ]
+          ] : []
         });
       }
     } catch (error) {
       console.error('Import error:', error);
-      addMessage('error', 'Import operation failed', {
-        title: 'Network Error',
-        details: error instanceof Error ? error.message : 'Unknown error occurred',
-        actions: [
+      
+      // Get enhanced error details
+      const errorDetails = getErrorDetails(error as Error);
+      
+      addMessage('error', errorDetails.message, {
+        title: errorDetails.title,
+        details: errorDetails.suggestions.join('\n'),
+        actions: errorDetails.retryable ? [
           {
             label: 'Retry Import',
             onClick: () => executeImport(),
             variant: 'primary'
           }
-        ]
+        ] : []
       });
+      
+      // Update progress tracker with error
+      const progressTracker = new ProgressTracker(IMPORT_STEPS, setProgressState);
+      progressTracker.errorStep('process', errorDetails.message);
     } finally {
       setIsImporting(false);
       setTimeout(() => setProgressState(null), 5000);

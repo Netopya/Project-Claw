@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { StatisticsService } from '../services/statistics-service.js';
 import { ExportService } from '../services/export-service.js';
+import { ExportError, ERROR_CODES, toApiError } from '../../utils/export-import-error-handler.js';
 
 const exportRoutes = new Hono();
 
@@ -17,11 +18,17 @@ exportRoutes.get('/stats', async (c) => {
   } catch (error) {
     console.error('Error getting database statistics:', error);
     
+    const exportError = new ExportError(
+      'Failed to retrieve database statistics',
+      ERROR_CODES.EXPORT_DATABASE_ERROR,
+      500,
+      true
+    );
+    
     return c.json({
       success: false,
-      error: 'Failed to retrieve database statistics',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    }, 500);
+      error: toApiError(exportError)
+    }, exportError.statusCode);
   }
 });
 
@@ -38,11 +45,17 @@ exportRoutes.get('/stats/detailed', async (c) => {
   } catch (error) {
     console.error('Error getting detailed database statistics:', error);
     
+    const exportError = new ExportError(
+      'Failed to retrieve detailed database statistics',
+      ERROR_CODES.EXPORT_DATABASE_ERROR,
+      500,
+      true
+    );
+    
     return c.json({
       success: false,
-      error: 'Failed to retrieve detailed database statistics',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    }, 500);
+      error: toApiError(exportError)
+    }, exportError.statusCode);
   }
 });
 
@@ -59,11 +72,17 @@ exportRoutes.get('/stats/validate', async (c) => {
   } catch (error) {
     console.error('Error validating statistics accuracy:', error);
     
+    const exportError = new ExportError(
+      'Failed to validate statistics accuracy',
+      ERROR_CODES.EXPORT_VALIDATION_FAILED,
+      500,
+      true
+    );
+    
     return c.json({
       success: false,
-      error: 'Failed to validate statistics accuracy',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    }, 500);
+      error: toApiError(exportError)
+    }, exportError.statusCode);
   }
 });
 
@@ -91,11 +110,51 @@ exportRoutes.post('/generate', async (c) => {
   } catch (error) {
     console.error('Error generating export file:', error);
     
+    // Determine specific error type based on error message
+    let exportError: ExportError;
+    const errorMessage = (error instanceof Error ? error.message : 'Unknown error').toLowerCase();
+    
+    if (errorMessage.includes('storage') || errorMessage.includes('space') || errorMessage.includes('enospc')) {
+      exportError = new ExportError(
+        'Insufficient storage space to create export file',
+        ERROR_CODES.EXPORT_INSUFFICIENT_STORAGE,
+        507,
+        true
+      );
+    } else if (errorMessage.includes('permission') || errorMessage.includes('eacces')) {
+      exportError = new ExportError(
+        'Permission denied while creating export file',
+        ERROR_CODES.PERMISSION_DENIED,
+        403,
+        false
+      );
+    } else if (errorMessage.includes('validation') || errorMessage.includes('integrity')) {
+      exportError = new ExportError(
+        'Data validation failed during export',
+        ERROR_CODES.EXPORT_VALIDATION_FAILED,
+        422,
+        false
+      );
+    } else if (errorMessage.includes('database') || errorMessage.includes('sql')) {
+      exportError = new ExportError(
+        'Database error occurred during export',
+        ERROR_CODES.EXPORT_DATABASE_ERROR,
+        500,
+        true
+      );
+    } else {
+      exportError = new ExportError(
+        'Failed to generate export file',
+        ERROR_CODES.EXPORT_FILE_GENERATION_FAILED,
+        500,
+        true
+      );
+    }
+    
     return c.json({
       success: false,
-      error: 'Failed to generate export file',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    }, 500);
+      error: toApiError(exportError)
+    }, exportError.statusCode);
   }
 });
 
@@ -112,11 +171,17 @@ exportRoutes.get('/metadata', async (c) => {
   } catch (error) {
     console.error('Error getting export metadata:', error);
     
+    const exportError = new ExportError(
+      'Failed to get export metadata',
+      ERROR_CODES.EXPORT_DATABASE_ERROR,
+      500,
+      true
+    );
+    
     return c.json({
       success: false,
-      error: 'Failed to get export metadata',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    }, 500);
+      error: toApiError(exportError)
+    }, exportError.statusCode);
   }
 });
 

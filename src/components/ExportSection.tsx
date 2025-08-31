@@ -2,6 +2,12 @@ import React, { useState, useCallback } from 'react';
 import { ProgressTracker, EXPORT_STEPS, type ProgressState } from '../utils/progress-tracker.js';
 import { ProgressIndicator } from './ProgressIndicator.js';
 import { MessageSystem, useMessageSystem } from './MessageSystem.js';
+import { 
+  getErrorDetails, 
+  retryOperation, 
+  ExportError, 
+  ERROR_CODES 
+} from '../utils/export-import-error-handler.js';
 
 interface DatabaseStats {
   animeInfo: number;
@@ -86,17 +92,36 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
       await new Promise(resolve => setTimeout(resolve, 500)); // Simulate validation time
       progressTracker.completeStep('validate', 'Data validation completed');
       
-      // Step 2: Extract data
+      // Step 2: Extract data with retry logic
       progressTracker.startStep('extract', 'Extracting database records...');
-      const response = await fetch('/api/export/generate', {
-        method: 'POST'
-      });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        progressTracker.errorStep('extract', errorData.error || 'Failed to extract data');
-        throw new Error(errorData.error || 'Export failed');
-      }
+      const response = await retryOperation(async () => {
+        const res = await fetch('/api/export/generate', {
+          method: 'POST'
+        });
+        
+        if (!res.ok) {
+          const errorData = await res.json();
+          
+          // Create specific error based on response
+          if (errorData.error?.code) {
+            const exportError = new ExportError(
+              errorData.error.message || 'Export failed',
+              errorData.error.code,
+              res.status
+            );
+            throw exportError;
+          }
+          
+          throw new ExportError(
+            errorData.error || 'Export failed',
+            ERROR_CODES.EXPORT_FILE_GENERATION_FAILED,
+            res.status
+          );
+        }
+        
+        return res;
+      }, 3, 'Export Data Extraction');
       
       progressTracker.completeStep('extract', 'Database records extracted successfully');
       
@@ -131,17 +156,27 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
       
     } catch (error) {
       console.error('Export error:', error);
-      addMessage('error', 'Export operation failed', {
-        title: 'Export Error',
-        details: error instanceof Error ? error.message : 'Unknown error occurred',
-        actions: [
+      
+      // Get enhanced error details
+      const errorDetails = getErrorDetails(error as Error);
+      
+      addMessage('error', errorDetails.message, {
+        title: errorDetails.title,
+        details: errorDetails.suggestions.join('\n'),
+        actions: errorDetails.retryable ? [
           {
             label: 'Retry Export',
             onClick: () => exportData(),
             variant: 'primary'
           }
-        ]
+        ] : []
       });
+      
+      // Update progress tracker with error
+      if (progressState) {
+        const progressTracker = new ProgressTracker(EXPORT_STEPS, setProgressState);
+        progressTracker.errorStep('extract', errorDetails.message);
+      }
     } finally {
       setIsExporting(false);
       // Reset progress after 5 seconds
@@ -149,7 +184,7 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
         setProgressState(null);
       }, 5000);
     }
-  }, [clearMessages, generateFilename, downloadFile, addMessage, refreshStats]);
+  }, [clearMessages, generateFilename, downloadFile, addMessage, refreshStats, progressState]);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">

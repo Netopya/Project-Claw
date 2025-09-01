@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { handleApiResponse, getErrorMessage, retryWithDelay } from '../utils/errorHandling';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { IndeterminateProgress } from './IndeterminateProgress';
 
 interface AddAnimeFormProps {
   onAnimeAdded: (anime: any) => void;
@@ -186,6 +187,15 @@ export function AddAnimeForm({ onAnimeAdded, onError }: AddAnimeFormProps) {
         </div>
       </div>
 
+      {/* Progress Indicator */}
+      {state.isSubmitting && (
+        <IndeterminateProgress 
+          isActive={state.isSubmitting}
+          title="Adding anime to watchlist"
+          className="mb-6"
+        />
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="anime-url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -261,7 +271,7 @@ export function AddAnimeForm({ onAnimeAdded, onError }: AddAnimeFormProps) {
             {state.isSubmitting ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 inline-block"></div>
-                Adding Anime...
+                Processing...
               </>
             ) : (
               'Add to Watchlist'
@@ -276,6 +286,12 @@ export function AddAnimeForm({ onAnimeAdded, onError }: AddAnimeFormProps) {
           <strong>Tip:</strong> Copy the URL from any anime page on MyAnimeList.
           The system will automatically fetch the title, image, rating, and other details.
         </p>
+        {!state.isSubmitting && (
+          <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+            <strong>Note:</strong> Adding anime may take 10-30 seconds as we discover and process 
+            related anime (sequels, prequels, etc.) to build complete series timelines.
+          </p>
+        )}
       </div>
     </div>
   );

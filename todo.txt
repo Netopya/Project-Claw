@@ -2,7 +2,7 @@
 - [x] No timeline cache stat?
 - [x] Import not importing watchlist
 - Status on about page
-- Loading state when adding watchlist item
+- [x] Loading state when adding watchlist item
 - [x] Component library
 - Maybe improve import so that new anime go to end of watchlist
 - Dark mode

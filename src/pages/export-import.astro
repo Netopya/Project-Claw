@@ -1,28 +1,11 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { ExportImportManager } from '../components/ExportImportManager';
-import { StatisticsService } from '../api/services/statistics-service.js';
 
-// Server-side data fetching for initial database statistics
-let initialStats;
-let statsError = null;
-
-try {
-  const statisticsService = new StatisticsService();
-  initialStats = await statisticsService.getDatabaseStatistics();
-} catch (error) {
-  console.error('Error fetching initial database statistics:', error);
-  statsError = error instanceof Error ? error.message : 'Failed to load database statistics';
-  // Provide fallback stats
-  initialStats = {
-    animeInfo: 0,
-    userWatchlist: 0,
-    animeRelationships: 0,
-    timelineCache: 0,
-    total: 0,
-    lastUpdated: new Date().toISOString()
-  };
-}
+// In production, we'll fetch stats client-side to avoid SSR database connection issues
+// The ExportImportManager component will handle fetching stats after page load
+const initialStats = null; // Will be fetched client-side
+const statsError = null;
 ---
 
 <Layout 

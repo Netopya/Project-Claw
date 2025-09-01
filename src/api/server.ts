@@ -99,6 +99,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     serve({
       fetch: app.fetch,
       port,
+      hostname: '0.0.0.0',
     });
     
     console.log(`🎯 Server is listening on port ${port}`);

@@ -445,7 +445,7 @@ export const ComponentShowcase: React.FC = () => {
             <h3 className="text-lg font-semibold mb-4">MessageSystem</h3>
             <div className="space-y-2 text-sm">
               <div><code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">messages: Message[]</code> - Array of messages to display</div>
-              <div><code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">onRemoveMessage: (id: string) => void</code> - Callback when message is dismissed</div>
+              <div><code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">onRemoveMessage: (id: string) =&gt; void</code> - Callback when message is dismissed</div>
               <div><code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">maxMessages?: number</code> - Maximum messages to show (default: 5)</div>
               <div><code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">className?: string</code> - Additional CSS classes</div>
             </div>
@@ -465,7 +465,7 @@ export const ComponentShowcase: React.FC = () => {
             <h3 className="text-lg font-semibold mb-4">AnimeCard</h3>
             <div className="space-y-2 text-sm">
               <div><code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">anime: Anime</code> - Anime data object</div>
-              <div><code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">onRemove: (id: number) => void</code> - Remove callback</div>
+              <div><code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">onRemove: (id: number) =&gt; void</code> - Remove callback</div>
               <div><code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">isDragging?: boolean</code> - Dragging state (default: false)</div>
               <div><code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">timeline?: SeriesTimeline | null</code> - Timeline data</div>
               <div><code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">timelineLoading?: boolean</code> - Timeline loading state</div>

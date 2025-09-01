@@ -1,0 +1,86 @@
+# Production Docker ignore file
+# Use with: docker build -f Dockerfile.prod --dockerignore .dockerignore.prod
+
+# Development files
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test files
+**/*.test.*
+**/*.spec.*
+**/__tests__/
+**/test/
+**/tests/
+coverage/
+.nyc_output/
+vitest.config.*
+jest.config.*
+
+# Development tools
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Environment files
+.env.local
+.env.development
+.env.test
+
+# Build artifacts (will be rebuilt)
+dist/
+build/
+.astro/
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+README.md
+CHANGELOG.md
+docs/
+
+# Development Docker files
+Dockerfile
+docker-compose.yml
+docker-entrypoint.sh
+
+# Temporary files
+tmp/
+temp/
+
+# Editor files
+*.sublime-project
+*.sublime-workspace
+
+# Package manager files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Misc
+.eslintcache
+.stylelintcache

@@ -6,10 +6,23 @@
 export function getApiBaseUrl(): string {
   // Check if we're in a browser environment
   if (typeof window !== 'undefined' && window.location) {
-    // Client-side - always use direct API URL for now
-    // TODO: Re-enable proxy when Astro dev server is running
-    const { protocol, hostname } = window.location;
-    return `${protocol}//${hostname}:3001`;
+    const { protocol, hostname, port } = window.location;
+    
+    // Determine API port based on current environment
+    let apiPort = '3001'; // Default for development/production
+    
+    if (port === '4000') {
+      // Docker production: frontend on 4000, API on 4001
+      apiPort = '4001';
+    } else if (port === '3000' && hostname === 'localhost') {
+      // Production: frontend on 3000, API on 3001
+      apiPort = '3001';
+    } else if (port === '' || port === '80' || port === '443') {
+      // Production with standard ports - try same origin first
+      return `${protocol}//${hostname}`;
+    }
+    
+    return `${protocol}//${hostname}:${apiPort}`;
   } else {
     // Server-side (SSR) or test environment
     return 'http://localhost:3001';

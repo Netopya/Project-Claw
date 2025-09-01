@@ -6,8 +6,16 @@ README.md
 .env
 .nyc_output
 coverage
-.nyc_output
 .vscode
 .DS_Store
 dist
 .astro
+
+# Test files
+**/*.test.*
+**/*.spec.*
+**/__tests__/
+**/test/
+**/tests/
+vitest.config.*
+jest.config.*

@@ -1,11 +1,11 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "00000000-0000-0000-0000-000000000000",
+  "id": "54f7f7d2-2d06-44f7-8bfe-7991138cab0f",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
-    "anime": {
-      "name": "anime",
+    "anime_info": {
+      "name": "anime_info",
       "columns": {
         "id": {
           "name": "id",
@@ -70,18 +70,47 @@
           "notNull": false,
           "autoincrement": false
         },
-        "series_info": {
-          "name": "series_info",
+        "episode_duration": {
+          "name": "episode_duration",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "anime_type": {
+          "name": "anime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'unknown'"
+        },
+        "status": {
+          "name": "status",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "priority": {
-          "name": "priority",
-          "type": "integer",
+        "source": {
+          "name": "source",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "studios": {
+          "name": "studios",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "genres": {
+          "name": "genres",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "created_at": {
@@ -102,23 +131,231 @@
         }
       },
       "indexes": {
-        "anime_mal_id_unique": {
-          "name": "anime_mal_id_unique",
-          "columns": ["mal_id"],
+        "anime_info_mal_id_unique": {
+          "name": "anime_info_mal_id_unique",
+          "columns": [
+            "mal_id"
+          ],
           "isUnique": true
-        },
-        "idx_anime_priority": {
-          "name": "idx_anime_priority",
-          "columns": ["priority"],
-          "isUnique": false
-        },
-        "idx_anime_mal_id": {
-          "name": "idx_anime_mal_id",
-          "columns": ["mal_id"],
-          "isUnique": false
         }
       },
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "anime_relationships": {
+      "name": "anime_relationships",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "source_mal_id": {
+          "name": "source_mal_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "target_mal_id": {
+          "name": "target_mal_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "relationship_type": {
+          "name": "relationship_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "anime_relationships_source_mal_id_anime_info_mal_id_fk": {
+          "name": "anime_relationships_source_mal_id_anime_info_mal_id_fk",
+          "tableFrom": "anime_relationships",
+          "tableTo": "anime_info",
+          "columnsFrom": [
+            "source_mal_id"
+          ],
+          "columnsTo": [
+            "mal_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "anime_relationships_target_mal_id_anime_info_mal_id_fk": {
+          "name": "anime_relationships_target_mal_id_anime_info_mal_id_fk",
+          "tableFrom": "anime_relationships",
+          "tableTo": "anime_info",
+          "columnsFrom": [
+            "target_mal_id"
+          ],
+          "columnsTo": [
+            "mal_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "timeline_cache": {
+      "name": "timeline_cache",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "root_mal_id": {
+          "name": "root_mal_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "timeline_data": {
+          "name": "timeline_data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cache_version": {
+          "name": "cache_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "timeline_cache_root_mal_id_unique": {
+          "name": "timeline_cache_root_mal_id_unique",
+          "columns": [
+            "root_mal_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "user_watchlist": {
+      "name": "user_watchlist",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "anime_info_id": {
+          "name": "anime_info_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "priority": {
+          "name": "priority",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "watch_status": {
+          "name": "watch_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'plan_to_watch'"
+        },
+        "user_rating": {
+          "name": "user_rating",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "user_watchlist_anime_info_id_anime_info_id_fk": {
+          "name": "user_watchlist_anime_info_id_anime_info_id_fk",
+          "tableFrom": "user_watchlist",
+          "tableTo": "anime_info",
+          "columnsFrom": [
+            "anime_info_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     }
@@ -128,5 +365,8 @@
     "schemas": {},
     "tables": {},
     "columns": {}
+  },
+  "internal": {
+    "indexes": {}
   }
 }

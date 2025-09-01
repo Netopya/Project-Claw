@@ -1,10 +1,10 @@
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema.js';
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { existsSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
 import { config } from '../config/env.js';
+import { MigrationService } from './migration-service.js';
 
 const DATABASE_PATH = config.databasePath;
 
@@ -28,107 +28,37 @@ export function getSQLiteConnection() {
   return sqlite;
 }
 
-// Database initialization function - creates fresh schema
+// Database initialization function - uses proper migrations
 export async function initializeDatabase() {
   try {
-    console.log('Initializing database with new schema...');
+    console.log('🚀 Initializing database...');
     
-    // Drop existing tables if they exist (fresh start as per requirements)
-    console.log('Dropping existing tables...');
-    sqlite.exec(`DROP TABLE IF EXISTS timeline_cache`);
-    sqlite.exec(`DROP TABLE IF EXISTS anime_relationships`);
-    sqlite.exec(`DROP TABLE IF EXISTS user_watchlist`);
-    sqlite.exec(`DROP TABLE IF EXISTS anime`); // Legacy table
-    sqlite.exec(`DROP TABLE IF EXISTS anime_info`);
+    const migrationService = new MigrationService();
     
-    console.log('Creating new database schema...');
+    // Check if migrations are needed
+    const migrationStatus = await migrationService.getMigrationStatus();
+    console.log(`📊 Migration status: ${migrationStatus.appliedMigrations}/${migrationStatus.totalMigrations} applied`);
     
-    // Create anime_info table
-    sqlite.exec(`
-      CREATE TABLE anime_info (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        mal_id INTEGER NOT NULL UNIQUE,
-        title TEXT NOT NULL,
-        title_english TEXT,
-        title_japanese TEXT,
-        image_url TEXT,
-        rating REAL,
-        premiere_date TEXT,
-        num_episodes INTEGER,
-        episode_duration INTEGER,
-        anime_type TEXT NOT NULL DEFAULT 'unknown',
-        status TEXT,
-        source TEXT,
-        studios TEXT,
-        genres TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+    if (migrationStatus.needsMigration) {
+      console.log('🔄 Running database migrations...');
+      await migrationService.runMigrations();
+    } else {
+      console.log('✅ Database is already up to date');
+    }
     
-    // Create user_watchlist table
-    sqlite.exec(`
-      CREATE TABLE user_watchlist (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        anime_info_id INTEGER NOT NULL,
-        priority INTEGER NOT NULL,
-        watch_status TEXT NOT NULL DEFAULT 'plan_to_watch',
-        user_rating REAL,
-        notes TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (anime_info_id) REFERENCES anime_info(id)
-      )
-    `);
+    // Create performance indexes
+    await migrationService.createPerformanceIndexes();
     
-    // Create anime_relationships table
-    sqlite.exec(`
-      CREATE TABLE anime_relationships (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        source_mal_id INTEGER NOT NULL,
-        target_mal_id INTEGER NOT NULL,
-        relationship_type TEXT NOT NULL,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (source_mal_id) REFERENCES anime_info(mal_id),
-        FOREIGN KEY (target_mal_id) REFERENCES anime_info(mal_id),
-        UNIQUE(source_mal_id, target_mal_id, relationship_type)
-      )
-    `);
+    // Verify database integrity
+    const isValid = await migrationService.verifyDatabaseIntegrity();
+    if (!isValid) {
+      throw new Error('Database integrity verification failed');
+    }
     
-    // Create timeline_cache table
-    sqlite.exec(`
-      CREATE TABLE timeline_cache (
-        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        root_mal_id INTEGER NOT NULL UNIQUE,
-        timeline_data TEXT NOT NULL,
-        cache_version INTEGER NOT NULL DEFAULT 1,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-    
-    console.log('Creating database indexes for optimal performance...');
-    
-    // Indexes for anime_info table
-    sqlite.exec('CREATE UNIQUE INDEX idx_anime_info_mal_id ON anime_info(mal_id)');
-    
-    // Indexes for user_watchlist table
-    sqlite.exec('CREATE INDEX idx_user_watchlist_anime_info_id ON user_watchlist(anime_info_id)');
-    sqlite.exec('CREATE INDEX idx_user_watchlist_priority ON user_watchlist(priority)');
-    
-    // Indexes for anime_relationships table (critical for graph traversal performance)
-    sqlite.exec('CREATE INDEX idx_anime_relationships_source ON anime_relationships(source_mal_id)');
-    sqlite.exec('CREATE INDEX idx_anime_relationships_target ON anime_relationships(target_mal_id)');
-    sqlite.exec('CREATE INDEX idx_anime_relationships_type ON anime_relationships(relationship_type)');
-    
-    // Indexes for timeline_cache table
-    sqlite.exec('CREATE UNIQUE INDEX idx_timeline_cache_root ON timeline_cache(root_mal_id)');
-    
-    console.log('Database schema created successfully with all tables and indexes');
-    console.log('Tables created: anime_info, user_watchlist, anime_relationships, timeline_cache');
+    console.log('✅ Database initialization completed successfully');
     return true;
   } catch (error) {
-    console.error('Failed to initialize database:', error);
+    console.error('❌ Failed to initialize database:', error);
     throw error;
   }
 }

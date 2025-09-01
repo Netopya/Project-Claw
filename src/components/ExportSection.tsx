@@ -36,11 +36,26 @@ interface ExportSectionProps {
   onStatsUpdate?: (stats: DatabaseStats) => void;
 }
 
+// Default stats to prevent null/undefined errors
+const DEFAULT_STATS: DatabaseStats = {
+  animeInfo: 0,
+  userWatchlist: 0,
+  animeRelationships: 0,
+  timelineCache: 0,
+  total: 0,
+  lastUpdated: new Date().toISOString()
+};
+
 export const ExportSection: React.FC<ExportSectionProps> = ({ 
   initialStats, 
   onStatsUpdate 
 }) => {
-  const [stats, setStats] = useState<DatabaseStats>(initialStats);
+  // Ensure we always have valid stats with fallback defaults
+  const safeInitialStats = {
+    ...DEFAULT_STATS,
+    ...initialStats
+  };
+  const [stats, setStats] = useState<DatabaseStats>(safeInitialStats);
   const [isExporting, setIsExporting] = useState(false);
   const [isRefreshingStats, setIsRefreshingStats] = useState(false);
   const [progressState, setProgressState] = useState<ProgressState | null>(null);
@@ -55,8 +70,13 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
       const data = await response.json();
       
       if (data.success) {
-        setStats(data.data);
-        onStatsUpdate?.(data.data);
+        // Ensure we always have valid stats data
+        const safeStats = {
+          ...DEFAULT_STATS,
+          ...data.data
+        };
+        setStats(safeStats);
+        onStatsUpdate?.(safeStats);
         addMessage('success', 'Database statistics refreshed successfully', { autoRemove: true });
       } else {
         addMessage('error', `Failed to refresh statistics: ${data.error}`, {
@@ -225,25 +245,25 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
           <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-            {stats.animeInfo.toLocaleString()}
+            {(stats.animeInfo ?? 0).toLocaleString()}
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">Anime Info</div>
         </div>
         <div className="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
           <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-            {stats.userWatchlist.toLocaleString()}
+            {(stats.userWatchlist ?? 0).toLocaleString()}
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">Watchlist</div>
         </div>
         <div className="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
           <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-            {stats.animeRelationships.toLocaleString()}
+            {(stats.animeRelationships ?? 0).toLocaleString()}
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">Relationships</div>
         </div>
         <div className="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
           <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-            {stats.timelineCache.toLocaleString()}
+            {(stats.timelineCache ?? 0).toLocaleString()}
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">
             Timeline Cache
@@ -255,11 +275,11 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
       </div>
 
       <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400 mb-4">
-        <span>Total Records: <span className="font-medium">{stats.total.toLocaleString()}</span></span>
-        <span>Last Updated: <ClientOnlyTimestamp timestamp={stats.lastUpdated} /></span>
+        <span>Total Records: <span className="font-medium">{(stats.total ?? 0).toLocaleString()}</span></span>
+        <span>Last Updated: <ClientOnlyTimestamp timestamp={stats.lastUpdated || new Date().toISOString()} /></span>
       </div>
 
-      {stats.timelineCache === 0 && (
+      {(stats.timelineCache ?? 0) === 0 && (
         <div className="text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md mb-6">
           <div className="flex items-start">
             <svg className="w-4 h-4 mr-2 mt-0.5 text-blue-600 dark:text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -282,7 +302,7 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
         </p>
         
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="flex flex-col sm:flex-row gap-3">
             <button 
               onClick={() => exportData(false)}
               disabled={isExporting}
@@ -295,7 +315,7 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
               <span>{isExporting ? 'Exporting...' : 'Export Data'}</span>
             </button>
             
-            {stats.total > 5000 && (
+            {(stats.total ?? 0) > 5000 && (
               <button 
                 onClick={() => exportData(true)}
                 disabled={isExporting}
@@ -311,7 +331,7 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
             )}
           </div>
           
-          {stats.total > 5000 && (
+          {(stats.total ?? 0) > 5000 && (
             <div className="text-sm text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md">
               <div className="flex items-start">
                 <svg className="w-4 h-4 mr-2 mt-0.5 text-blue-600 dark:text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -319,7 +339,7 @@ export const ExportSection: React.FC<ExportSectionProps> = ({
                 </svg>
                 <div>
                   <p className="font-medium text-blue-800 dark:text-blue-300">Large Dataset Detected</p>
-                  <p>With {stats.total.toLocaleString()} records, consider using "Stream Export" for better performance and memory efficiency.</p>
+                  <p>With {(stats.total ?? 0).toLocaleString()} records, consider using "Stream Export" for better performance and memory efficiency.</p>
                 </div>
               </div>
             </div>

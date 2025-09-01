@@ -69,9 +69,10 @@ export const ExportImportManager: React.FC<ExportImportManagerProps> = ({ initia
   if (isLoading) {
     return (
       <div className="space-y-8 mt-8">
-        <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading database statistics...</p>
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-lg text-gray-600 dark:text-gray-400">Loading database statistics...</p>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-500">This may take a moment</p>
         </div>
       </div>
     );

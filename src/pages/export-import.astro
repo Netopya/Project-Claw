@@ -1,11 +1,22 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { ExportImportManager } from '../components/ExportImportManager';
+import { StatisticsService } from '../api/services/statistics-service.js';
 
-// In production, we'll fetch stats client-side to avoid SSR database connection issues
-// The ExportImportManager component will handle fetching stats after page load
-const initialStats = null; // Will be fetched client-side
-const statsError = null;
+// Fetch stats server-side for immediate display
+let initialStats = null;
+let statsError = null;
+
+try {
+  // Fetch stats directly from database during SSR
+  const statisticsService = new StatisticsService();
+  initialStats = await statisticsService.getDatabaseStatistics();
+  console.log('SSR stats loaded successfully:', initialStats);
+} catch (error) {
+  // SSR stats fetch failed, will be loaded client-side
+  console.error('SSR stats fetch failed, will fetch client-side:', error);
+  statsError = `Failed to load initial statistics: ${error instanceof Error ? error.message : 'Unknown error'}`;
+}
 ---
 
 <Layout 
